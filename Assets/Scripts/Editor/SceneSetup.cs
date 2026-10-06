@@ -200,33 +200,20 @@ public static class SceneSetup
     {
         GameObject canvasObject = GameObject.Find("HUD Canvas");
         if (canvasObject == null)
-        {
             canvasObject = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler));
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-        }
 
-        Transform existingBar = canvasObject.transform.Find("PlayerHealthBar");
-        GameObject barRoot;
-        Image fillImage;
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
 
-        if (existingBar == null)
-        {
-            barRoot = CreateBarVisual(canvasObject.transform, "PlayerHealthBar", new Vector2(220f, 24f), Color.green, out fillImage);
-            RectTransform barRect = barRoot.GetComponent<RectTransform>();
-            barRect.anchorMin = new Vector2(0f, 0f);
-            barRect.anchorMax = new Vector2(0f, 0f);
-            barRect.pivot = new Vector2(0f, 0f);
-            barRect.anchoredPosition = new Vector2(24f, 24f);
-        }
-        else
-        {
-            barRoot = existingBar.gameObject;
-            fillImage = barRoot.transform.Find("Fill").GetComponent<Image>();
-        }
+        GameObject barRoot = CreateBarVisual(canvasObject.transform, "PlayerHealthBar", new Vector2(220f, 24f), Color.green, out Image fillImage);
+        RectTransform barRect = barRoot.GetComponent<RectTransform>();
+        barRect.anchorMin = new Vector2(0f, 0f);
+        barRect.anchorMax = new Vector2(0f, 0f);
+        barRect.pivot = new Vector2(0f, 0f);
+        barRect.anchoredPosition = new Vector2(24f, 24f);
 
         HealthBarUI barUI = barRoot.GetComponent<HealthBarUI>();
         if (barUI == null)
@@ -243,31 +230,23 @@ public static class SceneSetup
     private static void SetupEnemyHealthBar(GameObject enemy, EnemyHealth enemyHealth)
     {
         Transform existingCanvas = enemy.transform.Find("HealthBarCanvas");
-        GameObject canvasObject;
-        Image fillImage;
-
+        GameObject canvasObject = existingCanvas != null ? existingCanvas.gameObject : new GameObject("HealthBarCanvas", typeof(Canvas));
         if (existingCanvas == null)
-        {
-            canvasObject = new GameObject("HealthBarCanvas", typeof(Canvas));
             canvasObject.transform.SetParent(enemy.transform, false);
-            canvasObject.transform.localPosition = new Vector3(0f, 2.3f, 0f);
-            canvasObject.transform.localScale = Vector3.one * 0.01f;
 
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
-            canvasRect.sizeDelta = new Vector2(200f, 24f);
+        canvasObject.transform.localPosition = new Vector3(0f, 2.3f, 0f);
+        canvasObject.transform.localScale = Vector3.one * 0.01f;
 
-            GameObject barRoot = CreateBarVisual(canvasObject.transform, "Bar", new Vector2(200f, 24f), Color.green, out fillImage);
-            barRoot.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+        canvasRect.sizeDelta = new Vector2(200f, 24f);
 
+        GameObject barRoot = CreateBarVisual(canvasObject.transform, "Bar", new Vector2(200f, 24f), Color.green, out Image fillImage);
+        barRoot.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+
+        if (canvasObject.GetComponent<BillboardToCamera>() == null)
             canvasObject.AddComponent<BillboardToCamera>();
-        }
-        else
-        {
-            canvasObject = existingCanvas.gameObject;
-            fillImage = canvasObject.transform.Find("Bar/Fill").GetComponent<Image>();
-        }
 
         HealthBarUI barUI = canvasObject.GetComponent<HealthBarUI>();
         if (barUI == null)
@@ -283,12 +262,16 @@ public static class SceneSetup
 
     private static GameObject CreateBarVisual(Transform parent, string name, Vector2 size, Color fillColor, out Image fillImage)
     {
-        GameObject root = new GameObject(name, typeof(RectTransform));
-        root.transform.SetParent(parent, false);
+        Transform existingRoot = parent.Find(name);
+        GameObject root = existingRoot != null ? existingRoot.gameObject : new GameObject(name, typeof(RectTransform));
+        if (existingRoot == null)
+            root.transform.SetParent(parent, false);
         root.GetComponent<RectTransform>().sizeDelta = size;
 
-        GameObject background = new GameObject("Background", typeof(Image));
-        background.transform.SetParent(root.transform, false);
+        Transform existingBackground = root.transform.Find("Background");
+        GameObject background = existingBackground != null ? existingBackground.gameObject : new GameObject("Background", typeof(Image));
+        if (existingBackground == null)
+            background.transform.SetParent(root.transform, false);
         background.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
         RectTransform backgroundRect = background.GetComponent<RectTransform>();
         backgroundRect.anchorMin = Vector2.zero;
@@ -296,13 +279,15 @@ public static class SceneSetup
         backgroundRect.offsetMin = Vector2.zero;
         backgroundRect.offsetMax = Vector2.zero;
 
-        GameObject fill = new GameObject("Fill", typeof(Image));
-        fill.transform.SetParent(root.transform, false);
+        Transform existingFill = root.transform.Find("Fill");
+        GameObject fill = existingFill != null ? existingFill.gameObject : new GameObject("Fill", typeof(Image));
+        if (existingFill == null)
+            fill.transform.SetParent(root.transform, false);
         fillImage = fill.GetComponent<Image>();
         fillImage.color = fillColor;
         fillImage.type = Image.Type.Filled;
         fillImage.fillMethod = Image.FillMethod.Horizontal;
-        fillImage.fillAmount = 1f;
+        fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
         RectTransform fillRect = fill.GetComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
         fillRect.anchorMax = Vector2.one;

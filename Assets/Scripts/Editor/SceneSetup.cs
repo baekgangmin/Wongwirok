@@ -285,9 +285,6 @@ public static class SceneSetup
             fill.transform.SetParent(root.transform, false);
         fillImage = fill.GetComponent<Image>();
         fillImage.color = fillColor;
-        fillImage.type = Image.Type.Filled;
-        fillImage.fillMethod = Image.FillMethod.Horizontal;
-        fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
         RectTransform fillRect = fill.GetComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
         fillRect.anchorMax = Vector2.one;

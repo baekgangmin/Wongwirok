@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 public static class SceneSetup
 {
@@ -34,6 +35,12 @@ public static class SceneSetup
         PlayerParry parry = player.GetComponent<PlayerParry>();
         if (parry == null)
             parry = player.AddComponent<PlayerParry>();
+
+        PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+        if (playerHealth == null)
+            playerHealth = player.AddComponent<PlayerHealth>();
+
+        SetupPlayerHUD(playerHealth);
 
         WeaponSwing weaponSwing = CreateBranchWeapon(player);
 
@@ -99,8 +106,11 @@ public static class SceneSetup
         if (enemyRenderer != null)
             enemyRenderer.material.color = Color.gray;
 
-        if (enemy.GetComponent<EnemyHealth>() == null)
-            enemy.AddComponent<EnemyHealth>();
+        EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
+        if (enemyHealth == null)
+            enemyHealth = enemy.AddComponent<EnemyHealth>();
+
+        SetupEnemyHealthBar(enemy, enemyHealth);
 
         if (enemy.GetComponent<EnemyHitReaction>() == null)
             enemy.AddComponent<EnemyHitReaction>();
@@ -150,5 +160,119 @@ public static class SceneSetup
         }
 
         return weaponSwing;
+    }
+
+    private static void SetupPlayerHUD(PlayerHealth playerHealth)
+    {
+        GameObject canvasObject = GameObject.Find("HUD Canvas");
+        if (canvasObject == null)
+        {
+            canvasObject = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler));
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+        }
+
+        Transform existingBar = canvasObject.transform.Find("PlayerHealthBar");
+        GameObject barRoot;
+        Image fillImage;
+
+        if (existingBar == null)
+        {
+            barRoot = CreateBarVisual(canvasObject.transform, "PlayerHealthBar", new Vector2(220f, 24f), Color.red, out fillImage);
+            RectTransform barRect = barRoot.GetComponent<RectTransform>();
+            barRect.anchorMin = new Vector2(0f, 0f);
+            barRect.anchorMax = new Vector2(0f, 0f);
+            barRect.pivot = new Vector2(0f, 0f);
+            barRect.anchoredPosition = new Vector2(24f, 24f);
+        }
+        else
+        {
+            barRoot = existingBar.gameObject;
+            fillImage = barRoot.transform.Find("Fill").GetComponent<Image>();
+        }
+
+        HealthBarUI barUI = barRoot.GetComponent<HealthBarUI>();
+        if (barUI == null)
+            barUI = barRoot.AddComponent<HealthBarUI>();
+
+        SerializedObject barSerialized = new SerializedObject(barUI);
+        barSerialized.FindProperty("fillImage").objectReferenceValue = fillImage;
+        barSerialized.ApplyModifiedProperties();
+
+        barUI.Initialize(playerHealth);
+    }
+
+    private static void SetupEnemyHealthBar(GameObject enemy, EnemyHealth enemyHealth)
+    {
+        Transform existingCanvas = enemy.transform.Find("HealthBarCanvas");
+        GameObject canvasObject;
+        Image fillImage;
+
+        if (existingCanvas == null)
+        {
+            canvasObject = new GameObject("HealthBarCanvas", typeof(Canvas));
+            canvasObject.transform.SetParent(enemy.transform, false);
+            canvasObject.transform.localPosition = new Vector3(0f, 2.3f, 0f);
+            canvasObject.transform.localScale = Vector3.one * 0.01f;
+
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(200f, 24f);
+
+            GameObject barRoot = CreateBarVisual(canvasObject.transform, "Bar", new Vector2(200f, 24f), Color.red, out fillImage);
+            barRoot.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+
+            canvasObject.AddComponent<BillboardToCamera>();
+        }
+        else
+        {
+            canvasObject = existingCanvas.gameObject;
+            fillImage = canvasObject.transform.Find("Bar/Fill").GetComponent<Image>();
+        }
+
+        HealthBarUI barUI = canvasObject.GetComponent<HealthBarUI>();
+        if (barUI == null)
+            barUI = canvasObject.AddComponent<HealthBarUI>();
+
+        SerializedObject barSerialized = new SerializedObject(barUI);
+        barSerialized.FindProperty("fillImage").objectReferenceValue = fillImage;
+        barSerialized.ApplyModifiedProperties();
+
+        barUI.Initialize(enemyHealth);
+    }
+
+    private static GameObject CreateBarVisual(Transform parent, string name, Vector2 size, Color fillColor, out Image fillImage)
+    {
+        GameObject root = new GameObject(name, typeof(RectTransform));
+        root.transform.SetParent(parent, false);
+        root.GetComponent<RectTransform>().sizeDelta = size;
+
+        GameObject background = new GameObject("Background", typeof(Image));
+        background.transform.SetParent(root.transform, false);
+        background.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        RectTransform backgroundRect = background.GetComponent<RectTransform>();
+        backgroundRect.anchorMin = Vector2.zero;
+        backgroundRect.anchorMax = Vector2.one;
+        backgroundRect.offsetMin = Vector2.zero;
+        backgroundRect.offsetMax = Vector2.zero;
+
+        GameObject fill = new GameObject("Fill", typeof(Image));
+        fill.transform.SetParent(root.transform, false);
+        fillImage = fill.GetComponent<Image>();
+        fillImage.color = fillColor;
+        fillImage.type = Image.Type.Filled;
+        fillImage.fillMethod = Image.FillMethod.Horizontal;
+        fillImage.fillAmount = 1f;
+        RectTransform fillRect = fill.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = new Vector2(2f, 2f);
+        fillRect.offsetMax = new Vector2(-2f, -2f);
+
+        return root;
     }
 }

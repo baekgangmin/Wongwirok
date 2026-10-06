@@ -5,6 +5,7 @@ using UnityEngine;
 public class EnemyAttack : MonoBehaviour
 {
     [Header("Attack Timing")]
+    [SerializeField] private float attackDamage = 10f;
     [SerializeField] private float attackRange = 2f;
     [SerializeField] private float telegraphDuration = 0.6f;
     [SerializeField] private float activeDuration = 0.2f;
@@ -25,6 +26,7 @@ public class EnemyAttack : MonoBehaviour
 
     private EnemyHealth health;
     private PlayerMovement playerMovement;
+    private PlayerHealth playerHealth;
     private Color baseColor;
     private Coroutine attackRoutine;
     private bool isBusy;
@@ -44,7 +46,10 @@ public class EnemyAttack : MonoBehaviour
                 player = playerObject.transform;
         }
         if (player != null)
+        {
             playerMovement = player.GetComponent<PlayerMovement>();
+            playerHealth = player.GetComponent<PlayerHealth>();
+        }
     }
 
     private void Update()
@@ -79,9 +84,10 @@ public class EnemyAttack : MonoBehaviour
 
         IsAttackActive = true;
         bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
-        Debug.Log(playerInvulnerable
-            ? $"{name}: 공격이 회피로 빗나감"
-            : $"{name}: 공격 명중 (플레이어 체력 시스템 미구현)");
+        if (playerInvulnerable)
+            Debug.Log($"{name}: 공격이 회피로 빗나감");
+        else
+            playerHealth?.TakeDamage(attackDamage);
 
         yield return new WaitForSeconds(activeDuration);
         IsAttackActive = false;

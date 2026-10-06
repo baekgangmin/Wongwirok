@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
 
-public class EnemyHealth : MonoBehaviour, IHealth
+public class PlayerHealth : MonoBehaviour, IHealth
 {
-    [SerializeField] private float maxHealth = 50f;
+    [SerializeField] private float maxHealth = 100f;
 
     public event Action<float> OnDamaged;
     public event Action OnDeath;
@@ -31,6 +31,7 @@ public class EnemyHealth : MonoBehaviour, IHealth
         {
             IsDead = true;
             OnDeath?.Invoke();
+            Debug.Log("Wongwirok: 플레이어 사망 (마을 귀환 처리 미구현)");
         }
     }
 

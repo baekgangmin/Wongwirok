@@ -215,7 +215,7 @@ public static class SceneSetup
 
         if (existingBar == null)
         {
-            barRoot = CreateBarVisual(canvasObject.transform, "PlayerHealthBar", new Vector2(220f, 24f), Color.red, out fillImage);
+            barRoot = CreateBarVisual(canvasObject.transform, "PlayerHealthBar", new Vector2(220f, 24f), Color.green, out fillImage);
             RectTransform barRect = barRoot.GetComponent<RectTransform>();
             barRect.anchorMin = new Vector2(0f, 0f);
             barRect.anchorMax = new Vector2(0f, 0f);
@@ -258,7 +258,7 @@ public static class SceneSetup
             RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
             canvasRect.sizeDelta = new Vector2(200f, 24f);
 
-            GameObject barRoot = CreateBarVisual(canvasObject.transform, "Bar", new Vector2(200f, 24f), Color.red, out fillImage);
+            GameObject barRoot = CreateBarVisual(canvasObject.transform, "Bar", new Vector2(200f, 24f), Color.green, out fillImage);
             barRoot.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
             canvasObject.AddComponent<BillboardToCamera>();

@@ -50,6 +50,8 @@ public class HealthBarUI : MonoBehaviour
         if (fillImage == null || health == null || health.MaxHealth <= 0f)
             return;
 
-        fillImage.fillAmount = Mathf.Clamp01(health.CurrentHealth / health.MaxHealth);
+        float ratio = Mathf.Clamp01(health.CurrentHealth / health.MaxHealth);
+        fillImage.fillAmount = ratio;
+        fillImage.color = Color.Lerp(Color.red, Color.green, ratio);
     }
 }

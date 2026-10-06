@@ -25,6 +25,7 @@ public class PlayerHealth : MonoBehaviour, IHealth
             return;
 
         currentHealth -= amount;
+        Debug.Log($"Wongwirok [진단]: PlayerHealth.TakeDamage({amount}) 호출됨, 남은 체력 {currentHealth}/{maxHealth}, OnDamaged 구독자 수 {OnDamaged?.GetInvocationList().Length ?? 0}");
         OnDamaged?.Invoke(amount);
 
         if (currentHealth <= 0f)

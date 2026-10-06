@@ -83,14 +83,14 @@ public class EnemyAttack : MonoBehaviour
         yield return new WaitForSeconds(telegraphDuration);
 
         IsAttackActive = true;
+        yield return new WaitForSeconds(activeDuration);
+        IsAttackActive = false;
+
         bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
         if (playerInvulnerable)
             Debug.Log($"{name}: 공격이 회피로 빗나감");
         else
             playerHealth?.TakeDamage(attackDamage);
-
-        yield return new WaitForSeconds(activeDuration);
-        IsAttackActive = false;
 
         SetColor(baseColor);
         yield return new WaitForSeconds(recoveryDuration);

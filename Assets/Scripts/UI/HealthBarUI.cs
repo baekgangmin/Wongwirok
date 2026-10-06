@@ -4,10 +4,28 @@ using UnityEngine.UI;
 public class HealthBarUI : MonoBehaviour
 {
     [SerializeField] private Image fillImage;
+    [SerializeField] private MonoBehaviour healthSource;
 
     private IHealth health;
 
+    private void Awake()
+    {
+        if (healthSource is IHealth target)
+            Subscribe(target);
+    }
+
+    private void Start()
+    {
+        Refresh();
+    }
+
     public void Initialize(IHealth target)
+    {
+        Subscribe(target);
+        Refresh();
+    }
+
+    private void Subscribe(IHealth target)
     {
         if (health != null)
         {
@@ -22,8 +40,6 @@ public class HealthBarUI : MonoBehaviour
             health.OnDamaged += HandleHealthChanged;
             health.OnDeath += HandleHealthChanged;
         }
-
-        Refresh();
     }
 
     private void HandleHealthChanged(float amount) => Refresh();

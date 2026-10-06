@@ -90,17 +90,52 @@ public static class SceneSetup
     [MenuItem("Wongwirok/Spawn Test Enemy")]
     public static void SpawnTestEnemy()
     {
-        GameObject enemy = GameObject.Find("TestEnemy");
+        GameObject player = GameObject.Find("Player");
+        Vector3 position = player != null
+            ? player.transform.position + player.transform.forward * 10f
+            : new Vector3(0f, 1f, 10f);
+
+        GameObject enemy = CreateEnemyAt("TestEnemy", position);
+
+        Selection.activeGameObject = enemy;
+        Debug.Log("Wongwirok: 테스트 더미 적 생성 완료");
+    }
+
+    [MenuItem("Wongwirok/Spawn Random Enemies (x5)")]
+    public static void SpawnRandomEnemies()
+    {
+        GameObject player = GameObject.Find("Player");
+        Vector3 center = player != null ? player.transform.position : Vector3.zero;
+
+        const int count = 5;
+        const float minDistance = 6f;
+        const float maxDistance = 16f;
+
+        GameObject[] spawned = new GameObject[count];
+        for (int i = 0; i < count; i++)
+        {
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            float distance = Random.Range(minDistance, maxDistance);
+            Vector3 offset = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * distance;
+            Vector3 position = new Vector3(center.x + offset.x, center.y, center.z + offset.z);
+
+            spawned[i] = CreateEnemyAt($"TestEnemy_Random_{i + 1}", position);
+        }
+
+        Selection.objects = spawned;
+        Debug.Log($"Wongwirok: 랜덤 위치에 테스트 적 {count}마리 생성 완료");
+    }
+
+    private static GameObject CreateEnemyAt(string name, Vector3 position)
+    {
+        GameObject enemy = GameObject.Find(name);
         if (enemy == null)
         {
             enemy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            enemy.name = "TestEnemy";
+            enemy.name = name;
         }
 
-        GameObject player = GameObject.Find("Player");
-        enemy.transform.position = player != null
-            ? player.transform.position + player.transform.forward * 10f
-            : new Vector3(0f, 1f, 10f);
+        enemy.transform.position = position;
 
         Renderer enemyRenderer = enemy.GetComponent<Renderer>();
         if (enemyRenderer != null)
@@ -121,8 +156,7 @@ public static class SceneSetup
         if (enemy.GetComponent<EnemyChase>() == null)
             enemy.AddComponent<EnemyChase>();
 
-        Selection.activeGameObject = enemy;
-        Debug.Log("Wongwirok: 테스트 더미 적 생성 완료");
+        return enemy;
     }
 
     private static WeaponSwing CreateBranchWeapon(GameObject player)
@@ -200,6 +234,7 @@ public static class SceneSetup
 
         SerializedObject barSerialized = new SerializedObject(barUI);
         barSerialized.FindProperty("fillImage").objectReferenceValue = fillImage;
+        barSerialized.FindProperty("healthSource").objectReferenceValue = playerHealth;
         barSerialized.ApplyModifiedProperties();
 
         barUI.Initialize(playerHealth);
@@ -240,6 +275,7 @@ public static class SceneSetup
 
         SerializedObject barSerialized = new SerializedObject(barUI);
         barSerialized.FindProperty("fillImage").objectReferenceValue = fillImage;
+        barSerialized.FindProperty("healthSource").objectReferenceValue = enemyHealth;
         barSerialized.ApplyModifiedProperties();
 
         barUI.Initialize(enemyHealth);

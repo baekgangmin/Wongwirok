@@ -1,5 +1,7 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 public static class SceneSetup
@@ -173,9 +175,9 @@ public static class SceneSetup
         return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
     }
 
-    private static GameObject CreateWaterHand(string name, Vector3 position, float groundY = 0f)
+    private static GameObject CreateWaterHand(string name, Vector3 position)
     {
-        position.y = groundY + 1f;
+        position.y = GetGroundHeight(position) + 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.2f, 0.5f, 0.9f));
 
@@ -202,9 +204,9 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateDrownedCourtLady(string name, Vector3 position, float groundY = 0f)
+    private static GameObject CreateDrownedCourtLady(string name, Vector3 position)
     {
-        position.y = groundY + 1f;
+        position.y = GetGroundHeight(position) + 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.75f, 0.78f, 0.75f));
 
@@ -228,9 +230,9 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateWillOWisp(string name, Vector3 position, float groundY = 0f)
+    private static GameObject CreateWillOWisp(string name, Vector3 position)
     {
-        position.y = groundY + 1.5f;
+        position.y = GetGroundHeight(position) + 1.5f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(1f, 0.45f, 0.1f));
 
@@ -268,9 +270,24 @@ public static class SceneSetup
 
     private const float LakeRadius = 30f;
     private const float ShoreRadius = LakeRadius + 20f;
-    private const float LakeFloorDrop = 0.3f;
-    private const float ShoreRise = 0.3f;
+    private const float TerrainOuterRadius = ShoreRadius + 20f;
+    // 3f/0.8f로 했더니 호수가 깊은 구덩이처럼 보여서, 물 위에서 전투하는 것처럼 보이도록
+    // 사용자가 그려준 그림(땅은 거의 평평하고 물만 살짝 낮은 웅덩이)에 맞춰 다시 낮춤.
+    private const float LakeFloorDrop = 0.5f;
+    private const float ShoreRise = 0.25f;
     private const float WaterAnkleDepth = 0.18f;
+    private const float TerrainHeightRange = 8f;
+    private const float TerrainBaseNormalized = 0.5f;
+
+    // 터레인이 없는(기존 평지 메뉴) 환경에서는 0을 반환해서 그대로 평평한 바닥을 쓰고,
+    // 호수 맵에서는 실제 조각된 터레인 높이를 읽어와서 그 위에 정확히 배치한다.
+    private static float GetGroundHeight(Vector3 worldPosition)
+    {
+        Terrain terrain = Terrain.activeTerrain;
+        // Terrain.SampleHeight()는 터레인 오브젝트의 Y 위치를 더하지 않고 반환하는 함정이 있어서
+        // 월드 좌표로 쓰려면 transform.position.y를 직접 더해줘야 한다.
+        return terrain != null ? terrain.SampleHeight(worldPosition) + terrain.transform.position.y : 0f;
+    }
 
     private static void CreateBossArena(Vector3 center)
     {
@@ -286,8 +303,7 @@ public static class SceneSetup
                 Object.DestroyImmediate(oldPlatform.gameObject);
         }
 
-        // Plane은 사각형이라 둥근 호수를 만들 수 없어서, 납작하게 누른 Cylinder(원형 단면)로 교체.
-        // 기존 오브젝트가 이전 버전(Plane 등)일 수도 있어 매번 지우고 새로 만든다.
+        // 이전 버전(Cylinder 단차 지형)의 잔재가 남아있을 수 있어 정리
         Transform oldShore = arenaRoot.transform.Find("Shore");
         if (oldShore != null)
             Object.DestroyImmediate(oldShore.gameObject);
@@ -298,118 +314,233 @@ public static class SceneSetup
         if (oldWater != null)
             Object.DestroyImmediate(oldWater.gameObject);
 
-        // 나무가 서 있는 곳까지 "땅"으로 보이도록, 호수보다 넓은 원형 땅을 깔아둔다.
-        // 호수 쪽은 살짝 낮추고(LakeFloorDrop) 주변 땅은 살짝 높여서(ShoreRise) 높낮이를 준다.
-        // 경사면이 아니라 경계에서 턱(단차)이 지는 단순한 형태.
-        float shoreHalfThickness = 0.1f;
-        GameObject shore = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        shore.name = "Shore";
-        shore.transform.SetParent(arenaRoot.transform, false);
-        Object.DestroyImmediate(shore.GetComponent<Collider>());
-        shore.transform.localPosition = new Vector3(0f, ShoreRise - shoreHalfThickness, 0f);
-        shore.transform.localScale = new Vector3(ShoreRadius * 2f, shoreHalfThickness, ShoreRadius * 2f);
-        shore.AddComponent<MeshCollider>();
-        ApplyGroundLook(shore, "Assets/NatureStarterKit2/Textures/ground02.tga", new Color(0.32f, 0.26f, 0.17f), 16f);
-
-        float groundHalfThickness = 0.1f;
-        GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        ground.name = "LakeGround";
-        ground.transform.SetParent(arenaRoot.transform, false);
-        Object.DestroyImmediate(ground.GetComponent<Collider>());
-        ground.transform.localPosition = new Vector3(0f, -LakeFloorDrop - groundHalfThickness, 0f);
-        ground.transform.localScale = new Vector3(LakeRadius * 2f, groundHalfThickness, LakeRadius * 2f);
-        ground.AddComponent<MeshCollider>();
-        ApplyGroundLook(ground, "Assets/NatureStarterKit2/Textures/ground03.tga", new Color(0.35f, 0.3f, 0.25f), 10f);
-
-        CreateStylizedWaterVolume(arenaRoot.transform);
+        CreateLakeTerrain(center);
+        CreateStylizedWaterVolume(arenaRoot.transform, center);
     }
 
-    // 이 쉐이더는 WaterVolumeBase가 생성하는 전용 메쉬(월드좌표 기반 UV + 거품용 버텍스 컬러)를
-    // 전제로 만들어져 있어서, 일반 Cylinder에 머티리얼만 입히면 파도/거품/색이 깨져서 밋밋하게
-    // 나온다. 그래서 WaterVolumeBase를 상속한 자체 원형 컴포넌트(WaterVolumeCircle)를 만들어서,
-    // 셰이더가 필요로 하는 데이터는 유지하면서 진짜 원형 호수가 되도록 한다.
-    private static void CreateStylizedWaterVolume(Transform parent)
+    // Unity Terrain으로 실제 높낮이가 있는 지형을 깎는다: 호수 안쪽은 완만하게 낮아지고,
+    // 호수 테두리 밖은 완만하게 높아졌다가 다시 평지로 이어진다 (경계 단차 없이 부드러운 경사).
+    private static void CreateLakeTerrain(Vector3 center)
+    {
+        GameObject existingTerrain = GameObject.Find("LakeTerrain");
+        if (existingTerrain != null)
+            Object.DestroyImmediate(existingTerrain);
+
+        const int heightmapResolution = 129;
+        float terrainSize = TerrainOuterRadius * 2f;
+
+        TerrainData terrainData = new TerrainData();
+        terrainData.heightmapResolution = heightmapResolution;
+        terrainData.size = new Vector3(terrainSize, TerrainHeightRange, terrainSize);
+
+        float lakeDropNorm = LakeFloorDrop / TerrainHeightRange;
+        float shoreRiseNorm = ShoreRise / TerrainHeightRange;
+
+        float[,] heights = new float[heightmapResolution, heightmapResolution];
+        for (int zi = 0; zi < heightmapResolution; zi++)
+        {
+            for (int xi = 0; xi < heightmapResolution; xi++)
+            {
+                float worldX = (xi / (float)(heightmapResolution - 1)) * terrainSize - terrainSize * 0.5f;
+                float worldZ = (zi / (float)(heightmapResolution - 1)) * terrainSize - terrainSize * 0.5f;
+                float dist = Mathf.Sqrt(worldX * worldX + worldZ * worldZ);
+
+                float h;
+                if (dist <= LakeRadius)
+                {
+                    h = TerrainBaseNormalized - lakeDropNorm;
+                }
+                else if (dist <= ShoreRadius)
+                {
+                    float t = Mathf.SmoothStep(0f, 1f, (dist - LakeRadius) / (ShoreRadius - LakeRadius));
+                    h = Mathf.Lerp(TerrainBaseNormalized - lakeDropNorm, TerrainBaseNormalized + shoreRiseNorm, t);
+                }
+                else if (dist <= TerrainOuterRadius)
+                {
+                    float t = Mathf.SmoothStep(0f, 1f, (dist - ShoreRadius) / (TerrainOuterRadius - ShoreRadius));
+                    h = Mathf.Lerp(TerrainBaseNormalized + shoreRiseNorm, TerrainBaseNormalized, t);
+                }
+                else
+                {
+                    h = TerrainBaseNormalized;
+                }
+
+                heights[zi, xi] = h;
+            }
+        }
+        terrainData.SetHeights(0, 0, heights);
+
+        GameObject terrainObject = Terrain.CreateTerrainGameObject(terrainData);
+        terrainObject.name = "LakeTerrain";
+        terrainObject.transform.position = new Vector3(
+            center.x - terrainSize * 0.5f,
+            -TerrainBaseNormalized * TerrainHeightRange,
+            center.z - terrainSize * 0.5f);
+
+        ApplyTerrainTextures(terrainData, terrainSize);
+    }
+
+    // 호수 바닥(ground03)과 그 바깥 땅(ground02)을 거리 기반으로 부드럽게 블렌딩해서 칠한다.
+    private static void ApplyTerrainTextures(TerrainData terrainData, float terrainSize)
+    {
+        TerrainLayer lakebedLayer = CreateTerrainLayer("LakebedLayer", "Assets/NatureStarterKit2/Textures/ground03.tga", 8f);
+        TerrainLayer shoreLayer = CreateTerrainLayer("ShoreLayer", "Assets/NatureStarterKit2/Textures/ground02.tga", 12f);
+
+        if (lakebedLayer == null || shoreLayer == null)
+        {
+            Debug.LogWarning("Wongwirok: 터레인 텍스처 레이어를 만들지 못함 (NatureStarterKit2 텍스처 확인 필요)");
+            return;
+        }
+
+        terrainData.terrainLayers = new[] { lakebedLayer, shoreLayer };
+
+        int alphaRes = terrainData.alphamapResolution;
+        float[,,] alphamap = new float[alphaRes, alphaRes, 2];
+
+        const float blendWidth = 6f;
+        for (int zi = 0; zi < alphaRes; zi++)
+        {
+            for (int xi = 0; xi < alphaRes; xi++)
+            {
+                float worldX = (xi / (float)(alphaRes - 1)) * terrainSize - terrainSize * 0.5f;
+                float worldZ = (zi / (float)(alphaRes - 1)) * terrainSize - terrainSize * 0.5f;
+                float dist = Mathf.Sqrt(worldX * worldX + worldZ * worldZ);
+
+                float shoreWeight = Mathf.Clamp01(Mathf.SmoothStep(0f, 1f, (dist - LakeRadius) / blendWidth));
+
+                alphamap[zi, xi, 0] = 1f - shoreWeight;
+                alphamap[zi, xi, 1] = shoreWeight;
+            }
+        }
+
+        terrainData.SetAlphamaps(0, 0, alphamap);
+    }
+
+    private static TerrainLayer CreateTerrainLayer(string name, string texturePath, float tileSize)
+    {
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        if (texture == null)
+        {
+            Debug.LogWarning($"Wongwirok: 텍스처를 찾을 수 없음 - {texturePath}");
+            return null;
+        }
+
+        if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
+            AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
+
+        string path = $"{GeneratedMaterialsFolder}/{name}.terrainlayer";
+        TerrainLayer layer = AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+        if (layer == null)
+        {
+            layer = new TerrainLayer();
+            AssetDatabase.CreateAsset(layer, path);
+        }
+
+        layer.diffuseTexture = texture;
+        layer.tileSize = new Vector2(tileSize, tileSize);
+        EditorUtility.SetDirty(layer);
+
+        return layer;
+    }
+
+    // Bitgem과 NVJOB 둘 다 포기 - Bitgem은 전용 메쉬가 필요한 스타일라이즈드 셰이더라 색을 바꿔도
+    // 만화풍 파도가 "자연스럽지" 않았고, NVJOB은 Built-in RP 전용이라 URP에서 핑크로 깨졌다.
+    // Simple Water Shader URP(Houidisoft technology)는 일반 UV 기반 + 카메라 깊이 텍스처로 얕은/
+    // 깊은 색을 블렌딩하는 URP 전용 셰이더라 평범한 Cylinder에도 바로 써서 원형 호수를 유지한다.
+    private static void CreateStylizedWaterVolume(Transform parent, Vector3 center)
     {
         Transform existing = parent.Find("Water");
         if (existing != null)
             Object.DestroyImmediate(existing.gameObject);
 
-        // WaterVolumeBase는 타일 그리드를 (0,0,0) 기준 +X/+Z 쪽으로만 생성하므로,
-        // 생성 후 그리드 중심이 호수 중심(이 오브젝트의 위치)에 오도록 절반만큼 되돌려 놓는다.
-        const float tileSize = 1f;
-        int diameterTiles = Mathf.Clamp(Mathf.RoundToInt(LakeRadius * 2f / tileSize), 1, 100);
-        float centerOffset = -(diameterTiles - tileSize) / 2f;
-
-        GameObject waterObject = new GameObject("Water");
+        GameObject waterObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        waterObject.name = "Water";
         waterObject.transform.SetParent(parent, false);
-        waterObject.transform.localPosition = new Vector3(centerOffset, -LakeFloorDrop + WaterAnkleDepth, centerOffset);
+        Object.DestroyImmediate(waterObject.GetComponent<Collider>());
 
-        Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
-        if (sourceMaterial == null)
-            Debug.LogWarning("Wongwirok: Bitgem 물 머티리얼(example-water-01.mat)을 찾을 수 없음 - URP Stylized Water Shader가 Import됐는지 확인");
+        float lakeFloorHeight = GetGroundHeight(center);
+        const float waterHalfThickness = 0.05f;
+        float waterTopWorldY = lakeFloorHeight + WaterAnkleDepth;
+        waterObject.transform.position = new Vector3(center.x, waterTopWorldY - waterHalfThickness, center.z);
+        waterObject.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
 
-        MeshRenderer meshRenderer = waterObject.AddComponent<MeshRenderer>();
-        if (sourceMaterial != null)
-            meshRenderer.sharedMaterial = sourceMaterial;
-
-        WaterVolumeCircle waterVolume = waterObject.AddComponent<WaterVolumeCircle>();
-        waterVolume.TileSize = tileSize;
-        waterVolume.Radius = LakeRadius;
-        waterVolume.Rebuild();
+        Material waterMaterial = GetOrCreateLakeWaterMaterial();
+        MeshRenderer meshRenderer = waterObject.GetComponent<MeshRenderer>();
+        if (waterMaterial != null)
+            meshRenderer.sharedMaterial = waterMaterial;
     }
 
-    private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";
-
-    // NatureStarterKit2 텍스처가 있으면 그걸로 URP 머티리얼을 만들어 입히고,
-    // 에셋이 없는 환경에서도 깨지지 않도록 없으면 단색으로 대체한다.
-    private static void ApplyGroundLook(GameObject target, string texturePath, Color fallbackColor, float tiling)
+    // 에셋 원본 샘플 머티리얼(water material sample.mat)은 예전 Pro 셰이더용 값이 섞여 있어 신뢰할 수
+    // 없어서, 실제 셰이더 소스(SimpleWaterURP.shader)에 선언된 속성만 가지고 직접 머티리얼을 만든다.
+    private static Material GetOrCreateLakeWaterMaterial()
     {
-        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-        if (texture == null)
-        {
-            SetRendererColor(target, fallbackColor);
-            return;
-        }
+        string generatedPath = $"{GeneratedMaterialsFolder}/LakeWater.mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(generatedPath);
+        if (material != null)
+            return material;
 
-        string materialName = System.IO.Path.GetFileNameWithoutExtension(texturePath) + "_GroundMat";
-        string materialPath = $"{GeneratedMaterialsFolder}/{materialName}.mat";
+        Shader shader = Shader.Find("Custom/SimpleWaterURP");
+        if (shader == null)
+        {
+            Debug.LogWarning("Wongwirok: Custom/SimpleWaterURP 셰이더를 찾을 수 없음 - Simple Water Shader URP가 Import됐는지 확인");
+            return null;
+        }
 
         if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
             AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
 
-        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-        if (material == null)
-        {
-            Shader urpLit = Shader.Find("Universal Render Pipeline/Lit");
-            material = new Material(urpLit);
-            AssetDatabase.CreateAsset(material, materialPath);
-        }
+        material = new Material(shader) { name = "LakeWater" };
 
-        material.mainTexture = texture;
-        material.mainTextureScale = new Vector2(tiling, tiling);
-        EditorUtility.SetDirty(material);
+        // 고요하고 음산한 느낌이 되도록 파도는 약하게, 반사는 그레이징 각도가 아니면 거의 안 보이게.
+        material.SetFloat("_WaveSpeed", 0.35f);
+        material.SetFloat("_WaveStrength", 0.06f);
+        material.SetFloat("_WaveScale", 1.5f);
 
-        Renderer targetRenderer = target.GetComponent<Renderer>();
-        if (targetRenderer != null)
-            targetRenderer.sharedMaterial = material;
+        // 거의 검은색에 가까운 탁하고 썩은 듯한 녹회색 - 귀신 연못 분위기.
+        material.SetColor("_ShallowColor", new Color(0.1f, 0.12f, 0.09f, 0.6f));
+        material.SetColor("_DeepColor", new Color(0.01f, 0.02f, 0.015f, 0.97f));
+        material.SetFloat("_WaterDepth", LakeFloorDrop + WaterAnkleDepth);
+
+        Texture2D normalMap = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Houidisoft technology/Simple water/Resources/Normals 1.png");
+        if (normalMap != null)
+            material.SetTexture("_NormalMap", normalMap);
+        material.SetFloat("_NormalTiling", 4f);
+        material.SetFloat("_NormalStrength", 0.3f);
+        material.SetFloat("_NormalSpeed", 0.05f);
+
+        // 하늘이 밝을 때 그레이징 각도에서 물이 허옇게 반사되는 걸 줄이기 위해 더 낮춤.
+        material.SetFloat("_FresnelPower", 7f);
+        material.SetFloat("_ReflectionStrength", 0.15f);
+
+        material.SetColor("_FoamColor", new Color(0.75f, 0.75f, 0.68f, 1f));
+        material.SetFloat("_FoamDistance", 0.25f);
+        material.SetFloat("_FoamTiling", 2f);
+        material.SetFloat("_FoamSpeed", 0.08f);
+
+        material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+        AssetDatabase.CreateAsset(material, generatedPath);
+        return material;
     }
+
+    private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";
 
     [MenuItem("Wongwirok/Apply Sunset Skybox")]
     public static void ApplySunsetSkybox()
     {
-        Material skyboxMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Fantasy Skybox FREE/Panoramics/FS002/FS002_Sunset.mat");
+        // 일몰(Sunset) 텍스처는 밝은 해/구름이 그대로 박혀있어서 아무리 노출을 낮춰도 "해가 있는
+        // 노을"처럼 보임. 사용자가 원하는 건 해가 거의 없는 깜깜한 하늘에 붉은 기운만 도는 느낌이라
+        // 달 없는 밤(Night_Moonless) 텍스처를 베이스로 쓰고 빨간 틴트를 강하게 준다.
+        Material skyboxMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Fantasy Skybox FREE/Panoramics/FS002/FS002_Night_Moonless.mat");
         if (skyboxMaterial == null)
         {
-            Debug.LogWarning("Wongwirok: FS002_Sunset 스카이박스 머티리얼을 찾을 수 없음 (Fantasy Skybox FREE가 Import됐는지 확인)");
+            Debug.LogWarning("Wongwirok: FS002_Night_Moonless 스카이박스 머티리얼을 찾을 수 없음 (Fantasy Skybox FREE가 Import됐는지 확인)");
             return;
         }
 
-        // 참고 사진(짙은 주황-빨강, 어둡고 탁한 안개)에 맞춰 톤을 잡되,
-        // 지난번 틴트(1.0)가 너무 세서 빨간 채널이 거의 2배로 뜨고 블룸까지 겹쳐
-        // 화면 전체가 허옇게 날아갔었음 -> 틴트와 노출을 크게 낮춤.
-        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값.
-        skyboxMaterial.SetColor("_Tint", new Color(0.62f, 0.4f, 0.32f, 0.5f));
-        skyboxMaterial.SetFloat("_Exposure", 0.6f);
+        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값. R만 높이고 G/B는 낮춰서 "까만 하늘 + 붉은 기운"으로.
+        skyboxMaterial.SetColor("_Tint", new Color(0.95f, 0.28f, 0.2f, 0.5f));
+        skyboxMaterial.SetFloat("_Exposure", 0.65f);
         EditorUtility.SetDirty(skyboxMaterial);
 
         RenderSettings.skybox = skyboxMaterial;
@@ -419,10 +550,13 @@ public static class SceneSetup
         // 대신 Unity 내장 안개를 바로 켠다 (설정 하나로 비슷한 분위기를 낼 수 있음)
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.45f, 0.16f, 0.07f);
-        RenderSettings.fogDensity = 0.022f;
+        // 하늘을 어둡게 바꾼 것에 맞춰 안개도 주황이 아니라 짙은 핏빛 빨강으로.
+        RenderSettings.fogColor = new Color(0.35f, 0.08f, 0.06f);
+        // 0.022는 너무 옅고, 0.07은 근접 전투 카메라(10~20유닛) 거리에서 화면이 하얗게 덮여버림.
+        // 가까운 전투 거리에서는 살짝만, 먼 거리(50유닛+)에서는 짙게 끼도록 절충한 값.
+        RenderSettings.fogDensity = 0.028f;
 
-        // 메인(디렉셔널) 라이트도 같은 톤으로 맞춰서 씬 전체 분위기를 사진에 가깝게
+        // 메인(디렉셔널) 라이트도 같은 톤으로 맞춰서 씬 전체 분위기를 사진에 가깝게 - 어둡고 붉게.
         Light sunLight = RenderSettings.sun;
         if (sunLight == null)
         {
@@ -437,17 +571,107 @@ public static class SceneSetup
         }
         if (sunLight != null)
         {
-            sunLight.color = new Color(1f, 0.55f, 0.35f);
-            sunLight.intensity = 0.5f;
+            sunLight.color = new Color(0.9f, 0.3f, 0.2f);
+            sunLight.intensity = 0.4f;
         }
 
-        Debug.Log("Wongwirok: 노을 스카이박스(빨간 틴트) + 안개 + 라이트 톤 적용 완료");
+        Debug.Log("Wongwirok: 까만 밤하늘 + 붉은 틴트 + 짙은 안개 + 라이트 톤 적용 완료");
+    }
+
+    // Unity 내장 안개는 거리 기반이라 "하늘은 맑고 수면 위에만 낮게 깔리는" 느낌을 낼 수 없다.
+    // AERO - Volumetric Fog and Mist(무료)의 높이 기반 안개 셰이더를 URP FullScreenPassRendererFeature로
+    // 붙여서 실제 높이에 따라 옅어지는 안개를 만든다.
+    private static void SetupHeightFog()
+    {
+        Material fogMaterial = GetOrCreateHeightFogMaterial();
+        if (fogMaterial == null)
+            return;
+
+        EnsureHeightFogRendererFeature(fogMaterial);
+    }
+
+    private static Material GetOrCreateHeightFogMaterial()
+    {
+        string generatedPath = $"{GeneratedMaterialsFolder}/HeightFog.mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(generatedPath);
+        if (material != null)
+            return material;
+
+        Material source = AssetDatabase.LoadAssetAtPath<Material>("Assets/Mirza/AERO - Volumetric Fog and Mist/Materials/Volumetric Fog PC.mat");
+        if (source == null)
+        {
+            Debug.LogWarning("Wongwirok: AERO 'Volumetric Fog PC.mat'를 찾을 수 없음 - AERO - Volumetric Fog and Mist가 Import됐는지 확인");
+            return null;
+        }
+
+        if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
+            AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
+
+        material = new Material(source) { name = "HeightFog" };
+
+        // 핏빛 빨강 분위기에 맞춘 안개색. 호수 수면(대략 Y=-0.3) 바로 위로 낮게 깔리고
+        // 그 위로는 빠르게 옅어지도록(Height_Falloff를 높게) 설정.
+        material.SetColor("_Colour", new Color(0.5f, 0.06f, 0.05f, 1f));
+        // _Height/_Height_Falloff는 실제로는 셰이더에 노출/사용되지 않는 죽은 프로퍼티였음
+        // (Inspector에 안 뜸) - 진짜 높이 조절은 Height Mask 쪽 프로퍼티들.
+        material.SetFloat("_Height_Mask_Offset", -0.8f);
+        material.SetFloat("_Height_Mask_Falloff", 4f);
+        material.SetFloat("_Height_Mask_Length", 1f);
+        // 1.2는 화면 전체가 새까맣게 덮일 정도로 너무 진했음 - 지형을 따라 붉은 띠로만 보이도록 낮춤.
+        material.SetFloat("_Density", 0.3f);
+        material.SetFloat("_Max_Distance", 90f);
+        // 기본 4는 레이마치 샘플이 부족해서 디더링 노이즈가 자글자글하게 보였음 - 16으로 올려서
+        // 부드러운 구름 질감으로. (연산 비용은 약 4배 늘지만 PC 타겟이라 허용 범위)
+        material.SetFloat("_Steps", 16f);
+
+        AssetDatabase.CreateAsset(material, generatedPath);
+        return material;
+    }
+
+    private static void EnsureHeightFogRendererFeature(Material fogMaterial)
+    {
+        var rendererData = AssetDatabase.LoadAssetAtPath<UniversalRendererData>("Assets/Settings/PC_Renderer.asset");
+        if (rendererData == null)
+        {
+            Debug.LogWarning("Wongwirok: PC_Renderer.asset(UniversalRendererData)를 찾을 수 없음");
+            return;
+        }
+
+        FullScreenPassRendererFeature feature = null;
+        foreach (var existingFeature in rendererData.rendererFeatures)
+        {
+            if (existingFeature is FullScreenPassRendererFeature fullScreenFeature && fullScreenFeature.name == "Height Fog (AERO)")
+            {
+                feature = fullScreenFeature;
+                break;
+            }
+        }
+
+        if (feature == null)
+        {
+            feature = ScriptableObject.CreateInstance<FullScreenPassRendererFeature>();
+            feature.name = "Height Fog (AERO)";
+            feature.injectionPoint = FullScreenPassRendererFeature.InjectionPoint.BeforeRenderingPostProcessing;
+            feature.requirements = ScriptableRenderPassInput.Depth;
+            AssetDatabase.AddObjectToAsset(feature, rendererData);
+
+            SerializedObject serializedRenderer = new SerializedObject(rendererData);
+            SerializedProperty featuresProp = serializedRenderer.FindProperty("m_RendererFeatures");
+            featuresProp.arraySize++;
+            featuresProp.GetArrayElementAtIndex(featuresProp.arraySize - 1).objectReferenceValue = feature;
+            serializedRenderer.ApplyModifiedProperties();
+        }
+
+        feature.passMaterial = fogMaterial;
+        EditorUtility.SetDirty(feature);
+        EditorUtility.SetDirty(rendererData);
+        AssetDatabase.SaveAssets();
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)
     {
-        // 보스는 항상 CreateBossArena로 만든 호수 바닥(LakeFloorDrop만큼 낮음) 위에 선다
-        position.y = -LakeFloorDrop + 1.3f;
+        // 보스는 항상 터레인으로 깎인 호수 바닥 위에 선다
+        position.y = GetGroundHeight(position) + 1.3f;
         GameObject boss = GetOrCreateCapsule("Boss_PondGhost", position);
         boss.transform.localScale = new Vector3(1.3f, 1.3f, 1.3f);
         SetRendererColor(boss, new Color(0.3f, 0.45f, 0.55f));
@@ -470,6 +694,7 @@ public static class SceneSetup
         Vector3 lakeCenter = StageOrigin + StageDirection * (LakeRadius + 15f);
 
         ApplySunsetSkybox();
+        SetupHeightFog();
         CreateBossArena(lakeCenter);
         CreateTreesAround(lakeCenter, 24, LakeRadius + 3f, LakeRadius + 14f);
 
@@ -507,8 +732,9 @@ public static class SceneSetup
             }
 
             float height = Random.Range(3f, 6f);
-            // 나무는 호수 테두리 바깥, 살짝 높아진 Shore 위에 선다
-            tree.transform.position = new Vector3(position.x, ShoreRise + height * 0.5f, position.z);
+            // 나무는 호수 테두리 바깥, 터레인으로 높아진 땅 위에 선다
+            float groundHeight = GetGroundHeight(position);
+            tree.transform.position = new Vector3(position.x, groundHeight + height * 0.5f, position.z);
             tree.transform.localScale = new Vector3(0.3f, height * 0.5f, 0.3f);
             SetRendererColor(tree, new Color(0.15f, 0.12f, 0.1f));
 
@@ -520,15 +746,14 @@ public static class SceneSetup
 
     private static EnemyHealth[] CreateMobsAroundLakeEdge(Vector3 center, float radius)
     {
-        // 잡몹은 호수 안쪽(LakeGround, 낮아진 바닥) 위에 선다
-        const float groundY = -LakeFloorDrop;
+        // 잡몹은 터레인으로 낮아진 호수 안쪽 바닥 위에 선다 (높이는 각 Create 함수가 직접 샘플링)
         GameObject[] mobs = new GameObject[6];
-        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f), groundY);
-        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f), groundY);
-        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f), groundY);
-        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f), groundY);
-        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f), groundY);
-        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f));
 
         EnemyHealth[] healths = new EnemyHealth[mobs.Length];
         for (int i = 0; i < mobs.Length; i++)

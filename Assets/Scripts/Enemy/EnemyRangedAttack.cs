@@ -74,8 +74,7 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
             return;
 
         Vector3 spawnPosition = transform.position + Vector3.up * 1f;
-        Vector3 targetPosition = player.position + Vector3.up * 1f;
-        Vector3 direction = (targetPosition - spawnPosition).normalized;
+        Vector3 direction = (player.position - spawnPosition).normalized;
 
         GameObject projectileObject = new GameObject("EnemyProjectile");
         projectileObject.transform.position = spawnPosition;

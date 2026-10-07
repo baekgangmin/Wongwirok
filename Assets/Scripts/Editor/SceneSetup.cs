@@ -159,9 +159,9 @@ public static class SceneSetup
 
     private static GameObject[] SpawnMobsAround(Vector3 center)
     {
-        GameObject waterHand = CreateWaterHand(RandomPointAround(center, 3f, 7f));
-        GameObject drownedLady = CreateDrownedCourtLady(RandomPointAround(center, 3f, 7f));
-        GameObject willOWisp = CreateWillOWisp(RandomPointAround(center, 3f, 7f));
+        GameObject waterHand = CreateWaterHand("Mob_WaterHand", RandomPointAround(center, 3f, 7f));
+        GameObject drownedLady = CreateDrownedCourtLady("Mob_DrownedCourtLady", RandomPointAround(center, 3f, 7f));
+        GameObject willOWisp = CreateWillOWisp("Mob_WillOWisp", RandomPointAround(center, 3f, 7f));
 
         return new[] { waterHand, drownedLady, willOWisp };
     }
@@ -173,9 +173,9 @@ public static class SceneSetup
         return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
     }
 
-    private static GameObject CreateWaterHand(Vector3 position)
+    private static GameObject CreateWaterHand(string name, Vector3 position)
     {
-        GameObject enemy = GetOrCreateCapsule("Mob_WaterHand", position);
+        GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.2f, 0.5f, 0.9f));
 
         EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
@@ -201,9 +201,9 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateDrownedCourtLady(Vector3 position)
+    private static GameObject CreateDrownedCourtLady(string name, Vector3 position)
     {
-        GameObject enemy = GetOrCreateCapsule("Mob_DrownedCourtLady", position);
+        GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.75f, 0.78f, 0.75f));
 
         EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
@@ -226,10 +226,10 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateWillOWisp(Vector3 position)
+    private static GameObject CreateWillOWisp(string name, Vector3 position)
     {
         position.y = 1.5f;
-        GameObject enemy = GetOrCreateCapsule("Mob_WillOWisp", position);
+        GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(1f, 0.45f, 0.1f));
 
         EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
@@ -284,7 +284,7 @@ public static class SceneSetup
         if (groundTransform == null)
             ground.transform.SetParent(arenaRoot.transform, false);
         ground.transform.localPosition = Vector3.zero;
-        ground.transform.localScale = new Vector3(5f, 1f, 5f);
+        ground.transform.localScale = new Vector3(7f, 1f, 7f);
         if (ground.GetComponent<Collider>() == null)
             ground.AddComponent<MeshCollider>();
         SetRendererColor(ground, new Color(0.35f, 0.3f, 0.25f));
@@ -295,7 +295,7 @@ public static class SceneSetup
         if (waterTransform == null)
             water.transform.SetParent(arenaRoot.transform, false);
         water.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-        water.transform.localScale = new Vector3(5f, 1f, 5f);
+        water.transform.localScale = new Vector3(7f, 1f, 7f);
         if (water.GetComponent<Collider>() != null)
             Object.DestroyImmediate(water.GetComponent<Collider>());
         SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));
@@ -315,6 +315,88 @@ public static class SceneSetup
         EnsureComponent<PondGhostBoss>(boss);
 
         return boss;
+    }
+
+    [MenuItem("Wongwirok/Spawn Stage 1 Lake Map (호수 전체 맵)")]
+    public static void SpawnStage1LakeMap()
+    {
+        Vector3 lakeCenter = StageOrigin + StageDirection * 22f;
+
+        CreateBossArena(lakeCenter);
+        CreateTreesAround(lakeCenter, 20, 18f, 27f);
+
+        EnemyHealth[] mobHealths = CreateMobsAroundLakeEdge(lakeCenter, 13f);
+
+        // 처음엔 숨어있다가 잡몹을 다 잡으면 떠오르도록, Stage1Director가 활성화 전까지
+        // PondGhostBoss 스크립트와 콜라이더를 꺼둔다.
+        GameObject boss = CreatePondGhostBoss(lakeCenter);
+        SetupStage1Director(mobHealths, boss);
+
+        Selection.activeGameObject = boss;
+        Debug.Log("Wongwirok: 호수 전체 맵 생성 완료 - 잡몹을 모두 처치하면 보스가 호수 중앙에서 떠오름");
+    }
+
+    private static GameObject[] CreateTreesAround(Vector3 center, int count, float minRadius, float maxRadius)
+    {
+        GameObject[] trees = new GameObject[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            string treeName = $"TreeDummy_{i + 1}";
+            Vector3 position = RandomPointAround(center, minRadius, maxRadius);
+
+            GameObject tree = GameObject.Find(treeName);
+            if (tree == null)
+            {
+                tree = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                tree.name = treeName;
+                Object.DestroyImmediate(tree.GetComponent<Collider>());
+            }
+
+            float height = Random.Range(3f, 6f);
+            tree.transform.position = new Vector3(position.x, height * 0.5f, position.z);
+            tree.transform.localScale = new Vector3(0.3f, height * 0.5f, 0.3f);
+            SetRendererColor(tree, new Color(0.15f, 0.12f, 0.1f));
+
+            trees[i] = tree;
+        }
+
+        return trees;
+    }
+
+    private static EnemyHealth[] CreateMobsAroundLakeEdge(Vector3 center, float radius)
+    {
+        GameObject[] mobs = new GameObject[6];
+        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f));
+        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f));
+
+        EnemyHealth[] healths = new EnemyHealth[mobs.Length];
+        for (int i = 0; i < mobs.Length; i++)
+            healths[i] = mobs[i].GetComponent<EnemyHealth>();
+
+        return healths;
+    }
+
+    private static void SetupStage1Director(EnemyHealth[] mobHealths, GameObject boss)
+    {
+        GameObject directorObject = GameObject.Find("Stage1Director");
+        if (directorObject == null)
+            directorObject = new GameObject("Stage1Director");
+
+        Stage1Director director = EnsureComponent<Stage1Director>(directorObject);
+
+        SerializedObject directorSerialized = new SerializedObject(director);
+        SerializedProperty mobsProp = directorSerialized.FindProperty("mobHealths");
+        mobsProp.arraySize = mobHealths.Length;
+        for (int i = 0; i < mobHealths.Length; i++)
+            mobsProp.GetArrayElementAtIndex(i).objectReferenceValue = mobHealths[i];
+
+        directorSerialized.FindProperty("boss").objectReferenceValue = boss;
+        directorSerialized.ApplyModifiedProperties();
     }
 
     private static GameObject GetOrCreateCapsule(string name, Vector3 position)

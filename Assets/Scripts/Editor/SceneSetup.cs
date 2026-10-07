@@ -349,8 +349,8 @@ public static class SceneSetup
         waterObject.GetComponent<MeshRenderer>().sharedMaterial = waterMaterial;
     }
 
-    // 셰이더 그래프가 자동으로 붙인 프로퍼티 이름(Color_7D9A58EC 등)을 그대로 써서
-    // 어둡고 탁한 색으로 바꾼 전용 머티리얼을 만든다. 원본 example-water-01.mat은 건드리지 않음.
+    // 물 자체에 고정된 탁한 색을 입히는 대신, 반사를 강하게 키워서 하늘/안개 색을
+    // 그대로 비추게 한다. 베이스 색은 반사를 방해하지 않도록 거의 검정에 가깝게만 깔아둔다.
     private static Material CreateMurkyWaterMaterial(Material sourceMaterial)
     {
         if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
@@ -369,8 +369,11 @@ public static class SceneSetup
             material.CopyPropertiesFromMaterial(sourceMaterial);
         }
 
-        material.SetColor("Color_7D9A58EC", new Color(0.07f, 0.1f, 0.08f, 1f));
-        material.SetColor("Color_F01C36BF", new Color(0.18f, 0.22f, 0.12f, 0.45f));
+        material.SetColor("Color_7D9A58EC", new Color(0.03f, 0.025f, 0.02f, 1f));
+        material.SetColor("Color_F01C36BF", new Color(0.05f, 0.04f, 0.03f, 0.35f));
+        material.SetFloat("_Smoothness", 0.9f);
+        material.SetFloat("_EnvironmentReflections", 1f);
+        material.SetFloat("_GlossyReflections", 1f);
         EditorUtility.SetDirty(material);
 
         return material;
@@ -422,9 +425,10 @@ public static class SceneSetup
             return;
         }
 
-        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값이라, 빨간/주황 쪽으로 치우치게 설정
-        skyboxMaterial.SetColor("_Tint", new Color(0.95f, 0.4f, 0.3f, 0.5f));
-        skyboxMaterial.SetFloat("_Exposure", 1.3f);
+        // 참고 사진(짙은 주황-빨강, 어둡고 탁한 안개)에 맞춰 톤을 진하게 잡음.
+        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값이라, 빨간/주황 쪽으로 강하게 치우치게 설정
+        skyboxMaterial.SetColor("_Tint", new Color(1f, 0.3f, 0.12f, 0.5f));
+        skyboxMaterial.SetFloat("_Exposure", 1.0f);
         EditorUtility.SetDirty(skyboxMaterial);
 
         RenderSettings.skybox = skyboxMaterial;
@@ -434,10 +438,29 @@ public static class SceneSetup
         // 대신 Unity 내장 안개를 바로 켠다 (설정 하나로 비슷한 분위기를 낼 수 있음)
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.55f, 0.3f, 0.22f);
-        RenderSettings.fogDensity = 0.015f;
+        RenderSettings.fogColor = new Color(0.45f, 0.16f, 0.07f);
+        RenderSettings.fogDensity = 0.022f;
 
-        Debug.Log("Wongwirok: 노을 스카이박스(빨간 틴트) + 안개 적용 완료");
+        // 메인(디렉셔널) 라이트도 같은 톤으로 맞춰서 씬 전체 분위기를 사진에 가깝게
+        Light sunLight = RenderSettings.sun;
+        if (sunLight == null)
+        {
+            foreach (Light light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (light.type == LightType.Directional)
+                {
+                    sunLight = light;
+                    break;
+                }
+            }
+        }
+        if (sunLight != null)
+        {
+            sunLight.color = new Color(1f, 0.45f, 0.2f);
+            sunLight.intensity = 0.8f;
+        }
+
+        Debug.Log("Wongwirok: 노을 스카이박스(빨간 틴트) + 안개 + 라이트 톤 적용 완료");
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)

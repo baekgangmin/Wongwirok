@@ -25,7 +25,6 @@ public class PondGhostBoss : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform player;
     [SerializeField] private Renderer targetRenderer;
-    [SerializeField] private BossArenaPlatforms arenaPlatforms;
 
     private EnemyHealth health;
     private PlayerMovement playerMovement;
@@ -78,10 +77,6 @@ public class PondGhostBoss : MonoBehaviour
     {
         isBusy = true;
         SetColor(Color.red);
-
-        if (arenaPlatforms != null)
-            arenaPlatforms.SinkPlatforms();
-
         yield return new WaitForSeconds(1f);
 
         SetColor(baseColor);

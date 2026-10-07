@@ -130,14 +130,47 @@ public static class SceneSetup
     public static void SpawnStage1MobSet()
     {
         GameObject player = GameObject.Find("Player");
-        Vector3 center = player != null ? player.transform.position : Vector3.zero;
+        Vector3 forward = player != null ? player.transform.forward : Vector3.forward;
+        Vector3 center = (player != null ? player.transform.position : Vector3.zero) + forward * 10f;
 
-        GameObject waterHand = CreateWaterHand(center + new Vector3(4f, 0f, 6f));
-        GameObject drownedLady = CreateDrownedCourtLady(center + new Vector3(-5f, 0f, 7f));
-        GameObject willOWisp = CreateWillOWisp(center + new Vector3(0f, 0f, 10f));
+        GameObject[] mobs = SpawnMobsAround(center);
 
-        Selection.objects = new GameObject[] { waterHand, drownedLady, willOWisp };
-        Debug.Log("Wongwirok: 1스테이지 잡몹 3종(물손, 익사 궁인, 연못 도깨비불) 생성 완료");
+        Selection.objects = mobs;
+        Debug.Log("Wongwirok: 1스테이지 잡몹 3종(물손, 익사 궁인, 연못 도깨비불)을 랜덤 위치에 생성 완료");
+    }
+
+    [MenuItem("Wongwirok/Spawn Stage 1 (입구 잡몹 + 호수 보스)")]
+    public static void SpawnStage1Level()
+    {
+        GameObject player = GameObject.Find("Player");
+        Vector3 playerPosition = player != null ? player.transform.position : Vector3.zero;
+        Vector3 forward = player != null ? player.transform.forward : Vector3.forward;
+
+        Vector3 mobZoneCenter = playerPosition + forward * 10f;
+        SpawnMobsAround(mobZoneCenter);
+
+        Vector3 lakeCenter = playerPosition + forward * 35f;
+        CreateBossArena(lakeCenter);
+        GameObject boss = CreatePondGhostBoss(lakeCenter);
+
+        Selection.activeGameObject = boss;
+        Debug.Log("Wongwirok: 1스테이지 구성 완료 - 입구에 잡몹 3종(랜덤 배치), 전방 호수에 보스");
+    }
+
+    private static GameObject[] SpawnMobsAround(Vector3 center)
+    {
+        GameObject waterHand = CreateWaterHand(RandomPointAround(center, 3f, 7f));
+        GameObject drownedLady = CreateDrownedCourtLady(RandomPointAround(center, 3f, 7f));
+        GameObject willOWisp = CreateWillOWisp(RandomPointAround(center, 3f, 7f));
+
+        return new[] { waterHand, drownedLady, willOWisp };
+    }
+
+    private static Vector3 RandomPointAround(Vector3 center, float minDistance, float maxDistance)
+    {
+        float angle = Random.Range(0f, Mathf.PI * 2f);
+        float distance = Random.Range(minDistance, maxDistance);
+        return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
     }
 
     private static GameObject CreateWaterHand(Vector3 position)
@@ -248,16 +281,27 @@ public static class SceneSetup
                 Object.DestroyImmediate(oldPlatform.gameObject);
         }
 
+        Transform groundTransform = arenaRoot.transform.Find("LakeGround");
+        GameObject ground = groundTransform != null ? groundTransform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Plane);
+        ground.name = "LakeGround";
+        if (groundTransform == null)
+            ground.transform.SetParent(arenaRoot.transform, false);
+        ground.transform.localPosition = Vector3.zero;
+        ground.transform.localScale = new Vector3(3f, 1f, 3f);
+        if (ground.GetComponent<Collider>() == null)
+            ground.AddComponent<MeshCollider>();
+        SetRendererColor(ground, new Color(0.35f, 0.3f, 0.25f));
+
         Transform waterTransform = arenaRoot.transform.Find("Water");
         GameObject water = waterTransform != null ? waterTransform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Plane);
         water.name = "Water";
         if (waterTransform == null)
             water.transform.SetParent(arenaRoot.transform, false);
-        water.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        water.transform.localPosition = new Vector3(0f, 0.18f, 0f);
         water.transform.localScale = new Vector3(3f, 1f, 3f);
-        if (water.GetComponent<Collider>() == null)
-            water.AddComponent<MeshCollider>();
-        SetRendererColor(water, new Color(0.1f, 0.3f, 0.5f));
+        if (water.GetComponent<Collider>() != null)
+            Object.DestroyImmediate(water.GetComponent<Collider>());
+        SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)

@@ -1,4 +1,3 @@
-using Bitgem.VFX.StylisedWater;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -321,24 +320,24 @@ public static class SceneSetup
         CreateStylizedWaterVolume(arenaRoot.transform);
     }
 
-    // 이 쉐이더는 WaterVolumeBox가 생성하는 전용 메쉬(월드좌표 기반 UV + 거품용 버텍스 컬러)를
-    // 전제로 만들어져 있어서, 일반 Cylinder에 머티리얼만 입히면 파도/거품/색이 다 깨져서
-    // 밋밋하게 나온다 (원본 머티리얼을 그대로 써도 마찬가지). 그래서 WaterVolumeBox로 되돌림.
-    // 다만 이 컴포넌트는 네모난 타일 블록만 만들 수 있어서, 원형 호수에 내접하는
-    // 정사각형으로 깔아 모서리만 호수 바닥이 살짝 드러나게 한다.
+    // 이 쉐이더는 WaterVolumeBase가 생성하는 전용 메쉬(월드좌표 기반 UV + 거품용 버텍스 컬러)를
+    // 전제로 만들어져 있어서, 일반 Cylinder에 머티리얼만 입히면 파도/거품/색이 깨져서 밋밋하게
+    // 나온다. 그래서 WaterVolumeBase를 상속한 자체 원형 컴포넌트(WaterVolumeCircle)를 만들어서,
+    // 셰이더가 필요로 하는 데이터는 유지하면서 진짜 원형 호수가 되도록 한다.
     private static void CreateStylizedWaterVolume(Transform parent)
     {
         Transform existing = parent.Find("Water");
         if (existing != null)
             Object.DestroyImmediate(existing.gameObject);
 
+        // WaterVolumeBase는 타일 그리드를 (0,0,0) 기준 +X/+Z 쪽으로만 생성하므로,
+        // 생성 후 그리드 중심이 호수 중심(이 오브젝트의 위치)에 오도록 절반만큼 되돌려 놓는다.
         const float tileSize = 1f;
-        float size = Mathf.Min(Mathf.Floor(LakeRadius * 2f / 1.41421f), WaterVolumeBase.MAX_TILES_X);
+        int diameterTiles = Mathf.Clamp(Mathf.RoundToInt(LakeRadius * 2f / tileSize), 1, 100);
+        float centerOffset = -(diameterTiles - tileSize) / 2f;
 
         GameObject waterObject = new GameObject("Water");
         waterObject.transform.SetParent(parent, false);
-
-        float centerOffset = -(size - tileSize) / 2f;
         waterObject.transform.localPosition = new Vector3(centerOffset, 0.18f, centerOffset);
 
         Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
@@ -349,9 +348,9 @@ public static class SceneSetup
         if (sourceMaterial != null)
             meshRenderer.sharedMaterial = sourceMaterial;
 
-        WaterVolumeBox waterVolume = waterObject.AddComponent<WaterVolumeBox>();
+        WaterVolumeCircle waterVolume = waterObject.AddComponent<WaterVolumeCircle>();
         waterVolume.TileSize = tileSize;
-        waterVolume.Dimensions = new Vector3(size, tileSize, size);
+        waterVolume.Radius = LakeRadius;
         waterVolume.Rebuild();
     }
 

@@ -425,10 +425,12 @@ public static class SceneSetup
             return;
         }
 
-        // 참고 사진(짙은 주황-빨강, 어둡고 탁한 안개)에 맞춰 톤을 진하게 잡음.
-        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값이라, 빨간/주황 쪽으로 강하게 치우치게 설정
-        skyboxMaterial.SetColor("_Tint", new Color(1f, 0.3f, 0.12f, 0.5f));
-        skyboxMaterial.SetFloat("_Exposure", 1.0f);
+        // 참고 사진(짙은 주황-빨강, 어둡고 탁한 안개)에 맞춰 톤을 잡되,
+        // 지난번 틴트(1.0)가 너무 세서 빨간 채널이 거의 2배로 뜨고 블룸까지 겹쳐
+        // 화면 전체가 허옇게 날아갔었음 -> 틴트와 노출을 크게 낮춤.
+        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값.
+        skyboxMaterial.SetColor("_Tint", new Color(0.62f, 0.4f, 0.32f, 0.5f));
+        skyboxMaterial.SetFloat("_Exposure", 0.6f);
         EditorUtility.SetDirty(skyboxMaterial);
 
         RenderSettings.skybox = skyboxMaterial;
@@ -456,8 +458,8 @@ public static class SceneSetup
         }
         if (sunLight != null)
         {
-            sunLight.color = new Color(1f, 0.45f, 0.2f);
-            sunLight.intensity = 0.8f;
+            sunLight.color = new Color(1f, 0.55f, 0.35f);
+            sunLight.intensity = 0.5f;
         }
 
         Debug.Log("Wongwirok: 노을 스카이박스(빨간 틴트) + 안개 + 라이트 톤 적용 완료");

@@ -126,13 +126,17 @@ public static class SceneSetup
         Debug.Log($"Wongwirok: 랜덤 위치에 테스트 적 {count}마리 생성 완료");
     }
 
+    // 플레이어가 현재 어디를 보고 있든 매번 똑같은 자리에 맵이 생기도록, 플레이어 기준이 아니라
+    // 고정된 월드 좌표(원점에서 +Z 방향)를 기준으로 배치한다.
+    private static readonly Vector3 StageOrigin = Vector3.zero;
+    private static readonly Vector3 StageDirection = Vector3.forward;
+    private const float MobZoneDistance = 12f;
+    private const float LakeDistance = 40f;
+
     [MenuItem("Wongwirok/Spawn Stage1 Mob Set (물손+익사궁인+도깨비불)")]
     public static void SpawnStage1MobSet()
     {
-        GameObject player = GameObject.Find("Player");
-        Vector3 forward = player != null ? player.transform.forward : Vector3.forward;
-        Vector3 center = (player != null ? player.transform.position : Vector3.zero) + forward * 10f;
-
+        Vector3 center = StageOrigin + StageDirection * MobZoneDistance;
         GameObject[] mobs = SpawnMobsAround(center);
 
         Selection.objects = mobs;
@@ -142,19 +146,15 @@ public static class SceneSetup
     [MenuItem("Wongwirok/Spawn Stage 1 (입구 잡몹 + 호수 보스)")]
     public static void SpawnStage1Level()
     {
-        GameObject player = GameObject.Find("Player");
-        Vector3 playerPosition = player != null ? player.transform.position : Vector3.zero;
-        Vector3 forward = player != null ? player.transform.forward : Vector3.forward;
-
-        Vector3 mobZoneCenter = playerPosition + forward * 10f;
+        Vector3 mobZoneCenter = StageOrigin + StageDirection * MobZoneDistance;
         SpawnMobsAround(mobZoneCenter);
 
-        Vector3 lakeCenter = playerPosition + forward * 35f;
+        Vector3 lakeCenter = StageOrigin + StageDirection * LakeDistance;
         CreateBossArena(lakeCenter);
         GameObject boss = CreatePondGhostBoss(lakeCenter);
 
         Selection.activeGameObject = boss;
-        Debug.Log("Wongwirok: 1스테이지 구성 완료 - 입구에 잡몹 3종(랜덤 배치), 전방 호수에 보스");
+        Debug.Log($"Wongwirok: 1스테이지 구성 완료 - 입구(Z+{MobZoneDistance})에 잡몹 3종, 호수(Z+{LakeDistance})에 보스. 플레이어 위치/방향과 무관하게 항상 같은 자리에 생성됨");
     }
 
     private static GameObject[] SpawnMobsAround(Vector3 center)
@@ -255,10 +255,7 @@ public static class SceneSetup
     [MenuItem("Wongwirok/Spawn Boss Arena + Pond Ghost")]
     public static void SpawnBossArena()
     {
-        GameObject player = GameObject.Find("Player");
-        Vector3 arenaCenter = player != null
-            ? player.transform.position + player.transform.forward * 25f
-            : new Vector3(0f, 0f, 25f);
+        Vector3 arenaCenter = StageOrigin + StageDirection * LakeDistance;
 
         CreateBossArena(arenaCenter);
         GameObject boss = CreatePondGhostBoss(arenaCenter);
@@ -287,7 +284,7 @@ public static class SceneSetup
         if (groundTransform == null)
             ground.transform.SetParent(arenaRoot.transform, false);
         ground.transform.localPosition = Vector3.zero;
-        ground.transform.localScale = new Vector3(3f, 1f, 3f);
+        ground.transform.localScale = new Vector3(5f, 1f, 5f);
         if (ground.GetComponent<Collider>() == null)
             ground.AddComponent<MeshCollider>();
         SetRendererColor(ground, new Color(0.35f, 0.3f, 0.25f));
@@ -298,7 +295,7 @@ public static class SceneSetup
         if (waterTransform == null)
             water.transform.SetParent(arenaRoot.transform, false);
         water.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-        water.transform.localScale = new Vector3(3f, 1f, 3f);
+        water.transform.localScale = new Vector3(5f, 1f, 5f);
         if (water.GetComponent<Collider>() != null)
             Object.DestroyImmediate(water.GetComponent<Collider>());
         SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));

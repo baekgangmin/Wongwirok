@@ -1,3 +1,4 @@
+using Bitgem.VFX.StylisedWater;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -320,33 +321,38 @@ public static class SceneSetup
         CreateStylizedWaterVolume(arenaRoot.transform);
     }
 
-    // Bitgem StylisedWater의 WaterVolumeBox는 네모난 타일 블록 방식이라 원형을 못 그려서,
-    // LakeGround와 똑같은 둥근 실린더에 Bitgem 물 머티리얼만 입히는 방식으로 변경.
-    // (파도 가장자리 거품 효과는 WaterVolumeBox 전용 버텍스 컬러가 있어야 해서 빠짐)
+    // 이 쉐이더는 WaterVolumeBox가 생성하는 전용 메쉬(월드좌표 기반 UV + 거품용 버텍스 컬러)를
+    // 전제로 만들어져 있어서, 일반 Cylinder에 머티리얼만 입히면 파도/거품/색이 다 깨져서
+    // 밋밋하게 나온다 (원본 머티리얼을 그대로 써도 마찬가지). 그래서 WaterVolumeBox로 되돌림.
+    // 다만 이 컴포넌트는 네모난 타일 블록만 만들 수 있어서, 원형 호수에 내접하는
+    // 정사각형으로 깔아 모서리만 호수 바닥이 살짝 드러나게 한다.
     private static void CreateStylizedWaterVolume(Transform parent)
     {
         Transform existing = parent.Find("Water");
         if (existing != null)
             Object.DestroyImmediate(existing.gameObject);
 
-        GameObject waterObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        waterObject.name = "Water";
-        waterObject.transform.SetParent(parent, false);
-        Object.DestroyImmediate(waterObject.GetComponent<Collider>());
+        const float tileSize = 1f;
+        float size = Mathf.Min(Mathf.Floor(LakeRadius * 2f / 1.41421f), WaterVolumeBase.MAX_TILES_X);
 
-        float waterHalfThickness = 0.05f;
-        waterObject.transform.localPosition = new Vector3(0f, 0.18f - waterHalfThickness, 0f);
-        waterObject.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
+        GameObject waterObject = new GameObject("Water");
+        waterObject.transform.SetParent(parent, false);
+
+        float centerOffset = -(size - tileSize) / 2f;
+        waterObject.transform.localPosition = new Vector3(centerOffset, 0.18f, centerOffset);
 
         Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
         if (sourceMaterial == null)
-        {
             Debug.LogWarning("Wongwirok: Bitgem 물 머티리얼(example-water-01.mat)을 찾을 수 없음 - URP Stylized Water Shader가 Import됐는지 확인");
-            return;
-        }
 
-        // 커스텀 색 없이 원본 머티리얼을 그대로 사용
-        waterObject.GetComponent<MeshRenderer>().sharedMaterial = sourceMaterial;
+        MeshRenderer meshRenderer = waterObject.AddComponent<MeshRenderer>();
+        if (sourceMaterial != null)
+            meshRenderer.sharedMaterial = sourceMaterial;
+
+        WaterVolumeBox waterVolume = waterObject.AddComponent<WaterVolumeBox>();
+        waterVolume.TileSize = tileSize;
+        waterVolume.Dimensions = new Vector3(size, tileSize, size);
+        waterVolume.Rebuild();
     }
 
     private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";

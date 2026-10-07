@@ -353,11 +353,16 @@ public static class SceneSetup
     private static GameObject[] CreateTreesAround(Vector3 center, int count, float minRadius, float maxRadius)
     {
         GameObject[] trees = new GameObject[count];
+        float angleStepDeg = 360f / count;
 
         for (int i = 0; i < count; i++)
         {
             string treeName = $"TreeDummy_{i + 1}";
-            Vector3 position = RandomPointAround(center, minRadius, maxRadius);
+
+            float angleDeg = i * angleStepDeg + Random.Range(-angleStepDeg * 0.35f, angleStepDeg * 0.35f);
+            float angleRad = angleDeg * Mathf.Deg2Rad;
+            float radius = Random.Range(minRadius, maxRadius);
+            Vector3 position = center + new Vector3(Mathf.Sin(angleRad) * radius, 0f, Mathf.Cos(angleRad) * radius);
 
             GameObject tree = GameObject.Find(treeName);
             if (tree == null)

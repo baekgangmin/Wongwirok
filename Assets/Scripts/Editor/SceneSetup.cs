@@ -1,4 +1,3 @@
-using Bitgem.VFX.StylisedWater;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -321,35 +320,60 @@ public static class SceneSetup
         CreateStylizedWaterVolume(arenaRoot.transform);
     }
 
-    // Bitgem StylisedWater는 네모난 타일 블록으로 물을 만드는 방식이라 완전한 원은 못 그린다.
-    // 원형 호수 반지름 안에 내접하는 정사각형으로 깔아서, 모서리는 호수 바닥이 살짝 드러나는
-    // 자연스러운 "물가" 처럼 보이게 한다.
+    // Bitgem StylisedWater의 WaterVolumeBox는 네모난 타일 블록 방식이라 원형을 못 그려서,
+    // LakeGround와 똑같은 둥근 실린더에 Bitgem 물 머티리얼만 입히는 방식으로 변경.
+    // (파도 가장자리 거품 효과는 WaterVolumeBox 전용 버텍스 컬러가 있어야 해서 빠짐)
     private static void CreateStylizedWaterVolume(Transform parent)
     {
-        const float tileSize = 1f;
-        float size = Mathf.Min(Mathf.Floor(LakeRadius * 2f / 1.41421f), WaterVolumeBase.MAX_TILES_X);
-
         Transform existing = parent.Find("Water");
         if (existing != null)
             Object.DestroyImmediate(existing.gameObject);
 
-        GameObject waterObject = new GameObject("Water");
+        GameObject waterObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        waterObject.name = "Water";
         waterObject.transform.SetParent(parent, false);
+        Object.DestroyImmediate(waterObject.GetComponent<Collider>());
 
-        float centerOffset = -(size - tileSize) / 2f;
-        waterObject.transform.localPosition = new Vector3(centerOffset, 0.18f, centerOffset);
+        float waterHalfThickness = 0.05f;
+        waterObject.transform.localPosition = new Vector3(0f, 0.18f - waterHalfThickness, 0f);
+        waterObject.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
 
-        MeshRenderer meshRenderer = waterObject.AddComponent<MeshRenderer>();
-        Material waterMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
-        if (waterMaterial != null)
-            meshRenderer.sharedMaterial = waterMaterial;
-        else
+        Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
+        if (sourceMaterial == null)
+        {
             Debug.LogWarning("Wongwirok: Bitgem 물 머티리얼(example-water-01.mat)을 찾을 수 없음 - URP Stylized Water Shader가 Import됐는지 확인");
+            return;
+        }
 
-        WaterVolumeBox waterVolume = waterObject.AddComponent<WaterVolumeBox>();
-        waterVolume.TileSize = tileSize;
-        waterVolume.Dimensions = new Vector3(size, tileSize, size);
-        waterVolume.Rebuild();
+        Material waterMaterial = CreateMurkyWaterMaterial(sourceMaterial);
+        waterObject.GetComponent<MeshRenderer>().sharedMaterial = waterMaterial;
+    }
+
+    // 셰이더 그래프가 자동으로 붙인 프로퍼티 이름(Color_7D9A58EC 등)을 그대로 써서
+    // 어둡고 탁한 색으로 바꾼 전용 머티리얼을 만든다. 원본 example-water-01.mat은 건드리지 않음.
+    private static Material CreateMurkyWaterMaterial(Material sourceMaterial)
+    {
+        if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
+            AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
+
+        string path = $"{GeneratedMaterialsFolder}/MurkyWater.mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (material == null)
+        {
+            material = new Material(sourceMaterial);
+            AssetDatabase.CreateAsset(material, path);
+        }
+        else
+        {
+            material.shader = sourceMaterial.shader;
+            material.CopyPropertiesFromMaterial(sourceMaterial);
+        }
+
+        material.SetColor("Color_7D9A58EC", new Color(0.07f, 0.1f, 0.08f, 1f));
+        material.SetColor("Color_F01C36BF", new Color(0.18f, 0.22f, 0.12f, 0.45f));
+        EditorUtility.SetDirty(material);
+
+        return material;
     }
 
     private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";
@@ -398,9 +422,22 @@ public static class SceneSetup
             return;
         }
 
+        // 스카이박스 쉐이더의 _Tint는 0.5가 중립값이라, 빨간/주황 쪽으로 치우치게 설정
+        skyboxMaterial.SetColor("_Tint", new Color(0.95f, 0.4f, 0.3f, 0.5f));
+        skyboxMaterial.SetFloat("_Exposure", 1.3f);
+        EditorUtility.SetDirty(skyboxMaterial);
+
         RenderSettings.skybox = skyboxMaterial;
         DynamicGI.UpdateEnvironment();
-        Debug.Log("Wongwirok: 노을 스카이박스 적용 완료");
+
+        // Height Fog 에셋은 씬의 모든 오브젝트 머티리얼을 전용 쉐이더로 바꿔야 해서,
+        // 대신 Unity 내장 안개를 바로 켠다 (설정 하나로 비슷한 분위기를 낼 수 있음)
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogColor = new Color(0.55f, 0.3f, 0.22f);
+        RenderSettings.fogDensity = 0.015f;
+
+        Debug.Log("Wongwirok: 노을 스카이박스(빨간 틴트) + 안개 적용 완료");
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)

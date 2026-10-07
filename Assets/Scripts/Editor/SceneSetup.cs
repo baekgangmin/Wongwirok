@@ -173,9 +173,9 @@ public static class SceneSetup
         return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
     }
 
-    private static GameObject CreateWaterHand(string name, Vector3 position)
+    private static GameObject CreateWaterHand(string name, Vector3 position, float groundY = 0f)
     {
-        position.y = 1f;
+        position.y = groundY + 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.2f, 0.5f, 0.9f));
 
@@ -202,9 +202,9 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateDrownedCourtLady(string name, Vector3 position)
+    private static GameObject CreateDrownedCourtLady(string name, Vector3 position, float groundY = 0f)
     {
-        position.y = 1f;
+        position.y = groundY + 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.75f, 0.78f, 0.75f));
 
@@ -228,9 +228,9 @@ public static class SceneSetup
         return enemy;
     }
 
-    private static GameObject CreateWillOWisp(string name, Vector3 position)
+    private static GameObject CreateWillOWisp(string name, Vector3 position, float groundY = 0f)
     {
-        position.y = 1.5f;
+        position.y = groundY + 1.5f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(1f, 0.45f, 0.1f));
 
@@ -268,6 +268,9 @@ public static class SceneSetup
 
     private const float LakeRadius = 30f;
     private const float ShoreRadius = LakeRadius + 20f;
+    private const float LakeFloorDrop = 0.3f;
+    private const float ShoreRise = 0.3f;
+    private const float WaterAnkleDepth = 0.18f;
 
     private static void CreateBossArena(Vector3 center)
     {
@@ -295,14 +298,15 @@ public static class SceneSetup
         if (oldWater != null)
             Object.DestroyImmediate(oldWater.gameObject);
 
-        // 나무가 서 있는 곳까지 "땅"으로 보이도록, 호수보다 넓은 원형 땅을 호수 밑에 깔아둔다
-        // (호수 바닥보다 살짝 낮게 둬서 호수 안쪽에서는 가려지고, 바깥쪽만 땅으로 드러남).
+        // 나무가 서 있는 곳까지 "땅"으로 보이도록, 호수보다 넓은 원형 땅을 깔아둔다.
+        // 호수 쪽은 살짝 낮추고(LakeFloorDrop) 주변 땅은 살짝 높여서(ShoreRise) 높낮이를 준다.
+        // 경사면이 아니라 경계에서 턱(단차)이 지는 단순한 형태.
         float shoreHalfThickness = 0.1f;
         GameObject shore = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         shore.name = "Shore";
         shore.transform.SetParent(arenaRoot.transform, false);
         Object.DestroyImmediate(shore.GetComponent<Collider>());
-        shore.transform.localPosition = new Vector3(0f, -0.02f - shoreHalfThickness, 0f);
+        shore.transform.localPosition = new Vector3(0f, ShoreRise - shoreHalfThickness, 0f);
         shore.transform.localScale = new Vector3(ShoreRadius * 2f, shoreHalfThickness, ShoreRadius * 2f);
         shore.AddComponent<MeshCollider>();
         ApplyGroundLook(shore, "Assets/NatureStarterKit2/Textures/ground02.tga", new Color(0.32f, 0.26f, 0.17f), 16f);
@@ -312,7 +316,7 @@ public static class SceneSetup
         ground.name = "LakeGround";
         ground.transform.SetParent(arenaRoot.transform, false);
         Object.DestroyImmediate(ground.GetComponent<Collider>());
-        ground.transform.localPosition = new Vector3(0f, -groundHalfThickness, 0f);
+        ground.transform.localPosition = new Vector3(0f, -LakeFloorDrop - groundHalfThickness, 0f);
         ground.transform.localScale = new Vector3(LakeRadius * 2f, groundHalfThickness, LakeRadius * 2f);
         ground.AddComponent<MeshCollider>();
         ApplyGroundLook(ground, "Assets/NatureStarterKit2/Textures/ground03.tga", new Color(0.35f, 0.3f, 0.25f), 10f);
@@ -338,7 +342,7 @@ public static class SceneSetup
 
         GameObject waterObject = new GameObject("Water");
         waterObject.transform.SetParent(parent, false);
-        waterObject.transform.localPosition = new Vector3(centerOffset, 0.18f, centerOffset);
+        waterObject.transform.localPosition = new Vector3(centerOffset, -LakeFloorDrop + WaterAnkleDepth, centerOffset);
 
         Material sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
         if (sourceMaterial == null)
@@ -442,7 +446,8 @@ public static class SceneSetup
 
     private static GameObject CreatePondGhostBoss(Vector3 position)
     {
-        position.y = 1.3f;
+        // 보스는 항상 CreateBossArena로 만든 호수 바닥(LakeFloorDrop만큼 낮음) 위에 선다
+        position.y = -LakeFloorDrop + 1.3f;
         GameObject boss = GetOrCreateCapsule("Boss_PondGhost", position);
         boss.transform.localScale = new Vector3(1.3f, 1.3f, 1.3f);
         SetRendererColor(boss, new Color(0.3f, 0.45f, 0.55f));
@@ -502,7 +507,8 @@ public static class SceneSetup
             }
 
             float height = Random.Range(3f, 6f);
-            tree.transform.position = new Vector3(position.x, height * 0.5f, position.z);
+            // 나무는 호수 테두리 바깥, 살짝 높아진 Shore 위에 선다
+            tree.transform.position = new Vector3(position.x, ShoreRise + height * 0.5f, position.z);
             tree.transform.localScale = new Vector3(0.3f, height * 0.5f, 0.3f);
             SetRendererColor(tree, new Color(0.15f, 0.12f, 0.1f));
 
@@ -514,13 +520,15 @@ public static class SceneSetup
 
     private static EnemyHealth[] CreateMobsAroundLakeEdge(Vector3 center, float radius)
     {
+        // 잡몹은 호수 안쪽(LakeGround, 낮아진 바닥) 위에 선다
+        const float groundY = -LakeFloorDrop;
         GameObject[] mobs = new GameObject[6];
-        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f));
-        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f));
-        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f), groundY);
+        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f), groundY);
 
         EnemyHealth[] healths = new EnemyHealth[mobs.Length];
         for (int i = 0; i < mobs.Length; i++)

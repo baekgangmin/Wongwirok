@@ -8,12 +8,12 @@ public class EnemyChase : MonoBehaviour
     [SerializeField] private Transform player;
 
     private EnemyHealth health;
-    private EnemyAttack enemyAttack;
+    private IEnemyAttack enemyAttack;
 
     private void Awake()
     {
         health = GetComponent<EnemyHealth>();
-        enemyAttack = GetComponent<EnemyAttack>();
+        enemyAttack = GetComponent<IEnemyAttack>();
 
         if (player == null)
         {

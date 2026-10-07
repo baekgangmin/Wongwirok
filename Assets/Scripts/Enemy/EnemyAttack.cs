@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(EnemyHealth))]
-public class EnemyAttack : MonoBehaviour
+public class EnemyAttack : MonoBehaviour, IEnemyAttack
 {
     [Header("Attack Timing")]
     [SerializeField] private float attackDamage = 10f;
@@ -11,6 +11,11 @@ public class EnemyAttack : MonoBehaviour
     [SerializeField] private float activeDuration = 0.2f;
     [SerializeField] private float recoveryDuration = 0.8f;
     [SerializeField] private float staggerDuration = 1.2f;
+
+    [Header("On-Hit Effect")]
+    [SerializeField] private bool slowsPlayerInsteadOfDamage = false;
+    [SerializeField] private float slowMultiplier = 0.5f;
+    [SerializeField] private float slowDuration = 2f;
 
     [Header("Colors")]
     [SerializeField] private Color telegraphColor = new Color(1f, 0.5f, 0f);
@@ -88,9 +93,17 @@ public class EnemyAttack : MonoBehaviour
 
         bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
         if (playerInvulnerable)
+        {
             Debug.Log($"{name}: 공격이 회피로 빗나감");
+        }
+        else if (slowsPlayerInsteadOfDamage)
+        {
+            playerMovement?.ApplySlow(slowMultiplier, slowDuration);
+        }
         else
+        {
             playerHealth?.TakeDamage(attackDamage);
+        }
 
         SetColor(baseColor);
         yield return new WaitForSeconds(recoveryDuration);

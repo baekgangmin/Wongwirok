@@ -21,9 +21,17 @@ public class PlayerMovement : MonoBehaviour
     private CharacterController controller;
     private float verticalVelocity;
     private float dodgeCooldownTimer;
+    private float slowMultiplier = 1f;
+    private float slowTimer;
 
     public bool IsDodging { get; private set; }
     public bool IsInvulnerable { get; private set; }
+
+    public void ApplySlow(float multiplier, float duration)
+    {
+        slowMultiplier = multiplier;
+        slowTimer = duration;
+    }
 
     private void Awake()
     {
@@ -35,6 +43,13 @@ public class PlayerMovement : MonoBehaviour
     private void Update()
     {
         dodgeCooldownTimer -= Time.deltaTime;
+
+        if (slowTimer > 0f)
+        {
+            slowTimer -= Time.deltaTime;
+            if (slowTimer <= 0f)
+                slowMultiplier = 1f;
+        }
 
         if (IsDodging)
             return;
@@ -64,7 +79,7 @@ public class PlayerMovement : MonoBehaviour
             verticalVelocity = -2f;
         verticalVelocity += gravity * Time.deltaTime;
 
-        controller.Move((move * moveSpeed + Vector3.up * verticalVelocity) * Time.deltaTime);
+        controller.Move((move * moveSpeed * slowMultiplier + Vector3.up * verticalVelocity) * Time.deltaTime);
     }
 
     private IEnumerator DodgeRoutine(Vector3 direction)

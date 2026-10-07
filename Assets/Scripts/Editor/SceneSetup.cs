@@ -126,6 +126,153 @@ public static class SceneSetup
         Debug.Log($"Wongwirok: 랜덤 위치에 테스트 적 {count}마리 생성 완료");
     }
 
+    [MenuItem("Wongwirok/Spawn Stage1 Mob Set (물손+익사궁인+도깨비불)")]
+    public static void SpawnStage1MobSet()
+    {
+        GameObject player = GameObject.Find("Player");
+        Vector3 center = player != null ? player.transform.position : Vector3.zero;
+
+        GameObject waterHand = CreateWaterHand(center + new Vector3(4f, 0f, 6f));
+        GameObject drownedLady = CreateDrownedCourtLady(center + new Vector3(-5f, 0f, 7f));
+        GameObject willOWisp = CreateWillOWisp(center + new Vector3(0f, 0f, 10f));
+
+        Selection.objects = new GameObject[] { waterHand, drownedLady, willOWisp };
+        Debug.Log("Wongwirok: 1스테이지 잡몹 3종(물손, 익사 궁인, 연못 도깨비불) 생성 완료");
+    }
+
+    private static GameObject CreateWaterHand(Vector3 position)
+    {
+        GameObject enemy = GetOrCreateCapsule("Mob_WaterHand", position);
+        SetRendererColor(enemy, new Color(0.2f, 0.5f, 0.9f));
+
+        EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
+        SetField(health, "maxHealth", 10f);
+        SetupEnemyHealthBar(enemy, health);
+
+        EnsureComponent<EnemyHitReaction>(enemy);
+
+        EnemyAttack attack = EnsureComponent<EnemyAttack>(enemy);
+        SetField(attack, "attackDamage", 0f);
+        SetField(attack, "attackRange", 1.3f);
+        SetField(attack, "telegraphDuration", 0.4f);
+        SetField(attack, "activeDuration", 0.15f);
+        SetField(attack, "recoveryDuration", 0.6f);
+        SetField(attack, "slowsPlayerInsteadOfDamage", true);
+        SetField(attack, "slowMultiplier", 0.4f);
+        SetField(attack, "slowDuration", 2.5f);
+
+        EnemyChase chase = EnsureComponent<EnemyChase>(enemy);
+        SetField(chase, "moveSpeed", 3.5f);
+        SetField(chase, "detectionRange", 7f);
+
+        return enemy;
+    }
+
+    private static GameObject CreateDrownedCourtLady(Vector3 position)
+    {
+        GameObject enemy = GetOrCreateCapsule("Mob_DrownedCourtLady", position);
+        SetRendererColor(enemy, new Color(0.75f, 0.78f, 0.75f));
+
+        EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
+        SetField(health, "maxHealth", 60f);
+        SetupEnemyHealthBar(enemy, health);
+
+        EnsureComponent<EnemyHitReaction>(enemy);
+
+        EnemyAttack attack = EnsureComponent<EnemyAttack>(enemy);
+        SetField(attack, "attackDamage", 15f);
+        SetField(attack, "attackRange", 1.8f);
+        SetField(attack, "telegraphDuration", 0.9f);
+        SetField(attack, "activeDuration", 0.25f);
+        SetField(attack, "recoveryDuration", 1.3f);
+
+        EnemyChase chase = EnsureComponent<EnemyChase>(enemy);
+        SetField(chase, "moveSpeed", 1.5f);
+        SetField(chase, "detectionRange", 8f);
+
+        return enemy;
+    }
+
+    private static GameObject CreateWillOWisp(Vector3 position)
+    {
+        position.y = 1.5f;
+        GameObject enemy = GetOrCreateCapsule("Mob_WillOWisp", position);
+        SetRendererColor(enemy, new Color(1f, 0.45f, 0.1f));
+
+        EnemyHealth health = EnsureComponent<EnemyHealth>(enemy);
+        SetField(health, "maxHealth", 10f);
+        SetupEnemyHealthBar(enemy, health);
+
+        EnsureComponent<EnemyHitReaction>(enemy);
+
+        EnemyRangedAttack attack = EnsureComponent<EnemyRangedAttack>(enemy);
+        SetField(attack, "attackRange", 8f);
+        SetField(attack, "telegraphDuration", 0.5f);
+        SetField(attack, "cooldownDuration", 1.5f);
+        SetField(attack, "projectileSpeed", 8f);
+        SetField(attack, "projectileDamage", 8f);
+
+        EnemyChase chase = EnsureComponent<EnemyChase>(enemy);
+        SetField(chase, "moveSpeed", 2f);
+        SetField(chase, "detectionRange", 10f);
+
+        return enemy;
+    }
+
+    private static GameObject GetOrCreateCapsule(string name, Vector3 position)
+    {
+        GameObject obj = GameObject.Find(name);
+        if (obj == null)
+        {
+            obj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            obj.name = name;
+        }
+        obj.transform.position = position;
+        return obj;
+    }
+
+    private static void SetRendererColor(GameObject obj, Color color)
+    {
+        Renderer targetRenderer = obj.GetComponent<Renderer>();
+        if (targetRenderer != null)
+            targetRenderer.material.color = color;
+    }
+
+    private static T EnsureComponent<T>(GameObject obj) where T : Component
+    {
+        T component = obj.GetComponent<T>();
+        if (component == null)
+            component = obj.AddComponent<T>();
+        return component;
+    }
+
+    private static void SetField(Object target, string fieldName, float value)
+    {
+        SerializedProperty property = FindField(target, fieldName);
+        if (property == null)
+            return;
+        property.floatValue = value;
+        property.serializedObject.ApplyModifiedProperties();
+    }
+
+    private static void SetField(Object target, string fieldName, bool value)
+    {
+        SerializedProperty property = FindField(target, fieldName);
+        if (property == null)
+            return;
+        property.boolValue = value;
+        property.serializedObject.ApplyModifiedProperties();
+    }
+
+    private static SerializedProperty FindField(Object target, string fieldName)
+    {
+        SerializedObject serializedTarget = new SerializedObject(target);
+        SerializedProperty property = serializedTarget.FindProperty(fieldName);
+        if (property == null)
+            Debug.LogWarning($"Wongwirok: {target.GetType().Name}에 필드 '{fieldName}'를 찾을 수 없음");
+        return property;
+    }
+
     private static GameObject CreateEnemyAt(string name, Vector3 position)
     {
         GameObject enemy = GameObject.Find(name);

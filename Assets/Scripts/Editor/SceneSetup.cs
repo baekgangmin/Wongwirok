@@ -1,3 +1,4 @@
+using Bitgem.VFX.StylisedWater;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -317,15 +318,38 @@ public static class SceneSetup
         ground.AddComponent<MeshCollider>();
         ApplyGroundLook(ground, "Assets/NatureStarterKit2/Textures/ground03.tga", new Color(0.35f, 0.3f, 0.25f), 10f);
 
-        float waterTopHeight = 0.18f;
-        float waterHalfThickness = 0.05f;
-        GameObject water = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        water.name = "Water";
-        water.transform.SetParent(arenaRoot.transform, false);
-        Object.DestroyImmediate(water.GetComponent<Collider>());
-        water.transform.localPosition = new Vector3(0f, waterTopHeight - waterHalfThickness, 0f);
-        water.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
-        SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));
+        CreateStylizedWaterVolume(arenaRoot.transform);
+    }
+
+    // Bitgem StylisedWater는 네모난 타일 블록으로 물을 만드는 방식이라 완전한 원은 못 그린다.
+    // 원형 호수 반지름 안에 내접하는 정사각형으로 깔아서, 모서리는 호수 바닥이 살짝 드러나는
+    // 자연스러운 "물가" 처럼 보이게 한다.
+    private static void CreateStylizedWaterVolume(Transform parent)
+    {
+        const float tileSize = 1f;
+        float size = Mathf.Min(Mathf.Floor(LakeRadius * 2f / 1.41421f), WaterVolumeBase.MAX_TILES_X);
+
+        Transform existing = parent.Find("Water");
+        if (existing != null)
+            Object.DestroyImmediate(existing.gameObject);
+
+        GameObject waterObject = new GameObject("Water");
+        waterObject.transform.SetParent(parent, false);
+
+        float centerOffset = -(size - tileSize) / 2f;
+        waterObject.transform.localPosition = new Vector3(centerOffset, 0.18f, centerOffset);
+
+        MeshRenderer meshRenderer = waterObject.AddComponent<MeshRenderer>();
+        Material waterMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Bitgem/StylisedWater/URP/Materials/example-water-01.mat");
+        if (waterMaterial != null)
+            meshRenderer.sharedMaterial = waterMaterial;
+        else
+            Debug.LogWarning("Wongwirok: Bitgem 물 머티리얼(example-water-01.mat)을 찾을 수 없음 - URP Stylized Water Shader가 Import됐는지 확인");
+
+        WaterVolumeBox waterVolume = waterObject.AddComponent<WaterVolumeBox>();
+        waterVolume.TileSize = tileSize;
+        waterVolume.Dimensions = new Vector3(size, tileSize, size);
+        waterVolume.Rebuild();
     }
 
     private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";

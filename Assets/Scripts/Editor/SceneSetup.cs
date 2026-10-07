@@ -253,7 +253,7 @@ public static class SceneSetup
         water.name = "Water";
         if (waterTransform == null)
             water.transform.SetParent(arenaRoot.transform, false);
-        water.transform.localPosition = Vector3.zero;
+        water.transform.localPosition = new Vector3(0f, 0.05f, 0f);
         water.transform.localScale = new Vector3(3f, 1f, 3f);
         if (water.GetComponent<Collider>() == null)
             water.AddComponent<MeshCollider>();

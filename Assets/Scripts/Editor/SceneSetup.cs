@@ -267,6 +267,7 @@ public static class SceneSetup
     }
 
     private const float LakeRadius = 30f;
+    private const float ShoreRadius = LakeRadius + 20f;
 
     private static void CreateBossArena(Vector3 center)
     {
@@ -284,12 +285,27 @@ public static class SceneSetup
 
         // Plane은 사각형이라 둥근 호수를 만들 수 없어서, 납작하게 누른 Cylinder(원형 단면)로 교체.
         // 기존 오브젝트가 이전 버전(Plane 등)일 수도 있어 매번 지우고 새로 만든다.
+        Transform oldShore = arenaRoot.transform.Find("Shore");
+        if (oldShore != null)
+            Object.DestroyImmediate(oldShore.gameObject);
         Transform oldGround = arenaRoot.transform.Find("LakeGround");
         if (oldGround != null)
             Object.DestroyImmediate(oldGround.gameObject);
         Transform oldWater = arenaRoot.transform.Find("Water");
         if (oldWater != null)
             Object.DestroyImmediate(oldWater.gameObject);
+
+        // 나무가 서 있는 곳까지 "땅"으로 보이도록, 호수보다 넓은 원형 땅을 호수 밑에 깔아둔다
+        // (호수 바닥보다 살짝 낮게 둬서 호수 안쪽에서는 가려지고, 바깥쪽만 땅으로 드러남).
+        float shoreHalfThickness = 0.1f;
+        GameObject shore = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        shore.name = "Shore";
+        shore.transform.SetParent(arenaRoot.transform, false);
+        Object.DestroyImmediate(shore.GetComponent<Collider>());
+        shore.transform.localPosition = new Vector3(0f, -0.02f - shoreHalfThickness, 0f);
+        shore.transform.localScale = new Vector3(ShoreRadius * 2f, shoreHalfThickness, ShoreRadius * 2f);
+        shore.AddComponent<MeshCollider>();
+        SetRendererColor(shore, new Color(0.32f, 0.26f, 0.17f));
 
         float groundHalfThickness = 0.1f;
         GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

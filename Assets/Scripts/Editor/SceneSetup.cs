@@ -345,38 +345,8 @@ public static class SceneSetup
             return;
         }
 
-        Material waterMaterial = CreateMurkyWaterMaterial(sourceMaterial);
-        waterObject.GetComponent<MeshRenderer>().sharedMaterial = waterMaterial;
-    }
-
-    // 실제 쉐이더(Shader Graphs/WaterVolume-URP)의 진짜 프로퍼티 이름은
-    // 인스펙터 기준 _ShallowColor / _DeepColor / _Glossiness / _Metallic.
-    // (.mat 파일 안에 남아있던 Color_7D9A58EC 같은 이름은 예전/미사용 값이었음)
-    private static Material CreateMurkyWaterMaterial(Material sourceMaterial)
-    {
-        if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
-            AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
-
-        string path = $"{GeneratedMaterialsFolder}/MurkyWater.mat";
-        Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (material == null)
-        {
-            material = new Material(sourceMaterial);
-            AssetDatabase.CreateAsset(material, path);
-        }
-        else
-        {
-            material.shader = sourceMaterial.shader;
-            material.CopyPropertiesFromMaterial(sourceMaterial);
-        }
-
-        material.SetColor("_ShallowColor", new Color(0.1f, 0.1f, 0.07f, 1f));
-        material.SetColor("_DeepColor", new Color(0.03f, 0.03f, 0.02f, 1f));
-        material.SetFloat("_Glossiness", 0.85f);
-        material.SetFloat("_Metallic", 0.05f);
-        EditorUtility.SetDirty(material);
-
-        return material;
+        // 커스텀 색 없이 원본 머티리얼을 그대로 사용
+        waterObject.GetComponent<MeshRenderer>().sharedMaterial = sourceMaterial;
     }
 
     private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";

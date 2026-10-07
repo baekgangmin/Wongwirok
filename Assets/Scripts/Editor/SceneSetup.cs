@@ -175,6 +175,7 @@ public static class SceneSetup
 
     private static GameObject CreateWaterHand(string name, Vector3 position)
     {
+        position.y = 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.2f, 0.5f, 0.9f));
 
@@ -203,6 +204,7 @@ public static class SceneSetup
 
     private static GameObject CreateDrownedCourtLady(string name, Vector3 position)
     {
+        position.y = 1f;
         GameObject enemy = GetOrCreateCapsule(name, position);
         SetRendererColor(enemy, new Color(0.75f, 0.78f, 0.75f));
 
@@ -264,6 +266,8 @@ public static class SceneSetup
         Debug.Log("Wongwirok: 보스 아레나(물 바닥) + 연못 귀신 생성 완료");
     }
 
+    private const float LakeRadius = 30f;
+
     private static void CreateBossArena(Vector3 center)
     {
         GameObject arenaRoot = GameObject.Find("BossArena");
@@ -278,31 +282,39 @@ public static class SceneSetup
                 Object.DestroyImmediate(oldPlatform.gameObject);
         }
 
-        Transform groundTransform = arenaRoot.transform.Find("LakeGround");
-        GameObject ground = groundTransform != null ? groundTransform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Plane);
+        // Plane은 사각형이라 둥근 호수를 만들 수 없어서, 납작하게 누른 Cylinder(원형 단면)로 교체.
+        // 기존 오브젝트가 이전 버전(Plane 등)일 수도 있어 매번 지우고 새로 만든다.
+        Transform oldGround = arenaRoot.transform.Find("LakeGround");
+        if (oldGround != null)
+            Object.DestroyImmediate(oldGround.gameObject);
+        Transform oldWater = arenaRoot.transform.Find("Water");
+        if (oldWater != null)
+            Object.DestroyImmediate(oldWater.gameObject);
+
+        float groundHalfThickness = 0.1f;
+        GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         ground.name = "LakeGround";
-        if (groundTransform == null)
-            ground.transform.SetParent(arenaRoot.transform, false);
-        ground.transform.localPosition = Vector3.zero;
-        ground.transform.localScale = new Vector3(7f, 1f, 7f);
-        if (ground.GetComponent<Collider>() == null)
-            ground.AddComponent<MeshCollider>();
+        ground.transform.SetParent(arenaRoot.transform, false);
+        Object.DestroyImmediate(ground.GetComponent<Collider>());
+        ground.transform.localPosition = new Vector3(0f, -groundHalfThickness, 0f);
+        ground.transform.localScale = new Vector3(LakeRadius * 2f, groundHalfThickness, LakeRadius * 2f);
+        ground.AddComponent<MeshCollider>();
         SetRendererColor(ground, new Color(0.35f, 0.3f, 0.25f));
 
-        Transform waterTransform = arenaRoot.transform.Find("Water");
-        GameObject water = waterTransform != null ? waterTransform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Plane);
+        float waterTopHeight = 0.18f;
+        float waterHalfThickness = 0.05f;
+        GameObject water = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         water.name = "Water";
-        if (waterTransform == null)
-            water.transform.SetParent(arenaRoot.transform, false);
-        water.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-        water.transform.localScale = new Vector3(7f, 1f, 7f);
-        if (water.GetComponent<Collider>() != null)
-            Object.DestroyImmediate(water.GetComponent<Collider>());
+        water.transform.SetParent(arenaRoot.transform, false);
+        Object.DestroyImmediate(water.GetComponent<Collider>());
+        water.transform.localPosition = new Vector3(0f, waterTopHeight - waterHalfThickness, 0f);
+        water.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
         SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)
     {
+        position.y = 1.3f;
         GameObject boss = GetOrCreateCapsule("Boss_PondGhost", position);
         boss.transform.localScale = new Vector3(1.3f, 1.3f, 1.3f);
         SetRendererColor(boss, new Color(0.3f, 0.45f, 0.55f));
@@ -320,12 +332,14 @@ public static class SceneSetup
     [MenuItem("Wongwirok/Spawn Stage 1 Lake Map (호수 전체 맵)")]
     public static void SpawnStage1LakeMap()
     {
-        Vector3 lakeCenter = StageOrigin + StageDirection * 22f;
+        // 플레이어(원점)가 호수 테두리 바깥에서 출발해 걸어 들어오도록, 호수 반경(LakeRadius)보다
+        // 조금 더 먼 거리에 중심을 둔다.
+        Vector3 lakeCenter = StageOrigin + StageDirection * (LakeRadius + 15f);
 
         CreateBossArena(lakeCenter);
-        CreateTreesAround(lakeCenter, 20, 18f, 27f);
+        CreateTreesAround(lakeCenter, 24, LakeRadius + 3f, LakeRadius + 14f);
 
-        EnemyHealth[] mobHealths = CreateMobsAroundLakeEdge(lakeCenter, 13f);
+        EnemyHealth[] mobHealths = CreateMobsAroundLakeEdge(lakeCenter, LakeRadius - 12f);
 
         // 처음엔 숨어있다가 잡몹을 다 잡으면 떠오르도록, Stage1Director가 활성화 전까지
         // PondGhostBoss 스크립트와 콜라이더를 꺼둔다.

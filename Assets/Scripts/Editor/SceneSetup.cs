@@ -522,11 +522,26 @@ public static class SceneSetup
         return obj;
     }
 
+    private const string RuntimeMaterialName = "WongwirokRuntimeMaterial";
+
+    // renderer.material은 에디터 모드에서 호출할 때마다 머티리얼을 새로 복제해서
+    // 씬에 계속 쌓이는(leak) 경고를 일으킨다. sharedMaterial로 직접 관리해서
+    // 오브젝트당 하나의 인스턴스만 만들고 재사용한다.
     private static void SetRendererColor(GameObject obj, Color color)
     {
         Renderer targetRenderer = obj.GetComponent<Renderer>();
-        if (targetRenderer != null)
-            targetRenderer.material.color = color;
+        if (targetRenderer == null)
+            return;
+
+        Material material = targetRenderer.sharedMaterial;
+        if (material == null || material.name != RuntimeMaterialName)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            material = new Material(shader) { name = RuntimeMaterialName };
+            targetRenderer.sharedMaterial = material;
+        }
+
+        material.color = color;
     }
 
     private static T EnsureComponent<T>(GameObject obj) where T : Component
@@ -575,9 +590,7 @@ public static class SceneSetup
 
         enemy.transform.position = position;
 
-        Renderer enemyRenderer = enemy.GetComponent<Renderer>();
-        if (enemyRenderer != null)
-            enemyRenderer.material.color = Color.gray;
+        SetRendererColor(enemy, Color.gray);
 
         EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
         if (enemyHealth == null)
@@ -624,9 +637,7 @@ public static class SceneSetup
             branchObject.transform.localPosition = new Vector3(0f, 0f, 0.6f);
             branchObject.transform.localScale = new Vector3(0.05f, 0.6f, 0.05f);
 
-            Renderer branchRenderer = branchObject.GetComponent<Renderer>();
-            if (branchRenderer != null)
-                branchRenderer.material.color = new Color(0.45f, 0.3f, 0.15f);
+            SetRendererColor(branchObject, new Color(0.45f, 0.3f, 0.15f));
 
             branch = branchObject.transform;
         }

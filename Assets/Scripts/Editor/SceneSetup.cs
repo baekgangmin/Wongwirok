@@ -349,8 +349,9 @@ public static class SceneSetup
         waterObject.GetComponent<MeshRenderer>().sharedMaterial = waterMaterial;
     }
 
-    // 물 자체에 고정된 탁한 색을 입히는 대신, 반사를 강하게 키워서 하늘/안개 색을
-    // 그대로 비추게 한다. 베이스 색은 반사를 방해하지 않도록 거의 검정에 가깝게만 깔아둔다.
+    // 실제 쉐이더(Shader Graphs/WaterVolume-URP)의 진짜 프로퍼티 이름은
+    // 인스펙터 기준 _ShallowColor / _DeepColor / _Glossiness / _Metallic.
+    // (.mat 파일 안에 남아있던 Color_7D9A58EC 같은 이름은 예전/미사용 값이었음)
     private static Material CreateMurkyWaterMaterial(Material sourceMaterial)
     {
         if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
@@ -369,11 +370,10 @@ public static class SceneSetup
             material.CopyPropertiesFromMaterial(sourceMaterial);
         }
 
-        material.SetColor("Color_7D9A58EC", new Color(0.03f, 0.025f, 0.02f, 1f));
-        material.SetColor("Color_F01C36BF", new Color(0.05f, 0.04f, 0.03f, 0.35f));
-        material.SetFloat("_Smoothness", 0.9f);
-        material.SetFloat("_EnvironmentReflections", 1f);
-        material.SetFloat("_GlossyReflections", 1f);
+        material.SetColor("_ShallowColor", new Color(0.1f, 0.1f, 0.07f, 1f));
+        material.SetColor("_DeepColor", new Color(0.03f, 0.03f, 0.02f, 1f));
+        material.SetFloat("_Glossiness", 0.85f);
+        material.SetFloat("_Metallic", 0.05f);
         EditorUtility.SetDirty(material);
 
         return material;

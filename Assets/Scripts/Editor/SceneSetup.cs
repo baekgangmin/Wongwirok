@@ -305,7 +305,7 @@ public static class SceneSetup
         shore.transform.localPosition = new Vector3(0f, -0.02f - shoreHalfThickness, 0f);
         shore.transform.localScale = new Vector3(ShoreRadius * 2f, shoreHalfThickness, ShoreRadius * 2f);
         shore.AddComponent<MeshCollider>();
-        SetRendererColor(shore, new Color(0.32f, 0.26f, 0.17f));
+        ApplyGroundLook(shore, "Assets/NatureStarterKit2/Textures/ground02.tga", new Color(0.32f, 0.26f, 0.17f), 16f);
 
         float groundHalfThickness = 0.1f;
         GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -315,7 +315,7 @@ public static class SceneSetup
         ground.transform.localPosition = new Vector3(0f, -groundHalfThickness, 0f);
         ground.transform.localScale = new Vector3(LakeRadius * 2f, groundHalfThickness, LakeRadius * 2f);
         ground.AddComponent<MeshCollider>();
-        SetRendererColor(ground, new Color(0.35f, 0.3f, 0.25f));
+        ApplyGroundLook(ground, "Assets/NatureStarterKit2/Textures/ground03.tga", new Color(0.35f, 0.3f, 0.25f), 10f);
 
         float waterTopHeight = 0.18f;
         float waterHalfThickness = 0.05f;
@@ -326,6 +326,57 @@ public static class SceneSetup
         water.transform.localPosition = new Vector3(0f, waterTopHeight - waterHalfThickness, 0f);
         water.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
         SetRendererColor(water, new Color(0.15f, 0.4f, 0.6f));
+    }
+
+    private const string GeneratedMaterialsFolder = "Assets/Scripts/GeneratedMaterials";
+
+    // NatureStarterKit2 텍스처가 있으면 그걸로 URP 머티리얼을 만들어 입히고,
+    // 에셋이 없는 환경에서도 깨지지 않도록 없으면 단색으로 대체한다.
+    private static void ApplyGroundLook(GameObject target, string texturePath, Color fallbackColor, float tiling)
+    {
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        if (texture == null)
+        {
+            SetRendererColor(target, fallbackColor);
+            return;
+        }
+
+        string materialName = System.IO.Path.GetFileNameWithoutExtension(texturePath) + "_GroundMat";
+        string materialPath = $"{GeneratedMaterialsFolder}/{materialName}.mat";
+
+        if (!AssetDatabase.IsValidFolder(GeneratedMaterialsFolder))
+            AssetDatabase.CreateFolder("Assets/Scripts", "GeneratedMaterials");
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        if (material == null)
+        {
+            Shader urpLit = Shader.Find("Universal Render Pipeline/Lit");
+            material = new Material(urpLit);
+            AssetDatabase.CreateAsset(material, materialPath);
+        }
+
+        material.mainTexture = texture;
+        material.mainTextureScale = new Vector2(tiling, tiling);
+        EditorUtility.SetDirty(material);
+
+        Renderer targetRenderer = target.GetComponent<Renderer>();
+        if (targetRenderer != null)
+            targetRenderer.sharedMaterial = material;
+    }
+
+    [MenuItem("Wongwirok/Apply Sunset Skybox")]
+    public static void ApplySunsetSkybox()
+    {
+        Material skyboxMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Fantasy Skybox FREE/Panoramics/FS002/FS002_Sunset.mat");
+        if (skyboxMaterial == null)
+        {
+            Debug.LogWarning("Wongwirok: FS002_Sunset 스카이박스 머티리얼을 찾을 수 없음 (Fantasy Skybox FREE가 Import됐는지 확인)");
+            return;
+        }
+
+        RenderSettings.skybox = skyboxMaterial;
+        DynamicGI.UpdateEnvironment();
+        Debug.Log("Wongwirok: 노을 스카이박스 적용 완료");
     }
 
     private static GameObject CreatePondGhostBoss(Vector3 position)
@@ -352,6 +403,7 @@ public static class SceneSetup
         // 조금 더 먼 거리에 중심을 둔다.
         Vector3 lakeCenter = StageOrigin + StageDirection * (LakeRadius + 15f);
 
+        ApplySunsetSkybox();
         CreateBossArena(lakeCenter);
         CreateTreesAround(lakeCenter, 24, LakeRadius + 3f, LakeRadius + 14f);
 

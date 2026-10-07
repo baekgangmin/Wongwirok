@@ -219,6 +219,92 @@ public static class SceneSetup
         return enemy;
     }
 
+    [MenuItem("Wongwirok/Spawn Boss Arena + Pond Ghost")]
+    public static void SpawnBossArena()
+    {
+        GameObject player = GameObject.Find("Player");
+        Vector3 arenaCenter = player != null
+            ? player.transform.position + player.transform.forward * 25f
+            : new Vector3(0f, 0f, 25f);
+
+        BossArenaPlatforms arenaPlatforms = CreateBossArena(arenaCenter);
+        GameObject boss = CreatePondGhostBoss(arenaCenter, arenaPlatforms);
+
+        Selection.activeGameObject = boss;
+        Debug.Log("Wongwirok: 보스 아레나(물+발판 6개) + 연못 귀신 생성 완료");
+    }
+
+    private static BossArenaPlatforms CreateBossArena(Vector3 center)
+    {
+        GameObject arenaRoot = GameObject.Find("BossArena");
+        if (arenaRoot == null)
+            arenaRoot = new GameObject("BossArena");
+        arenaRoot.transform.position = center;
+
+        Transform waterTransform = arenaRoot.transform.Find("Water");
+        GameObject water = waterTransform != null ? waterTransform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Plane);
+        water.name = "Water";
+        if (waterTransform == null)
+            water.transform.SetParent(arenaRoot.transform, false);
+        water.transform.localPosition = new Vector3(0f, -0.3f, 0f);
+        water.transform.localScale = new Vector3(3f, 1f, 3f);
+        if (water.GetComponent<Collider>() != null)
+            Object.DestroyImmediate(water.GetComponent<Collider>());
+        SetRendererColor(water, new Color(0.1f, 0.3f, 0.5f));
+
+        BossArenaPlatforms arenaPlatforms = EnsureComponent<BossArenaPlatforms>(arenaRoot);
+
+        const int platformCount = 6;
+        const float ringRadius = 5f;
+        GameObject[] platforms = new GameObject[platformCount];
+
+        for (int i = 0; i < platformCount; i++)
+        {
+            string platformName = $"Platform_{i + 1}";
+            Transform existingPlatform = arenaRoot.transform.Find(platformName);
+            GameObject platform = existingPlatform != null ? existingPlatform.gameObject : GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            platform.name = platformName;
+            if (existingPlatform == null)
+                platform.transform.SetParent(arenaRoot.transform, false);
+
+            float angle = i * Mathf.PI * 2f / platformCount;
+            platform.transform.localPosition = new Vector3(Mathf.Sin(angle) * ringRadius, 0f, Mathf.Cos(angle) * ringRadius);
+            platform.transform.localScale = new Vector3(2.5f, 0.2f, 2.5f);
+            SetRendererColor(platform, new Color(0.5f, 0.45f, 0.4f));
+
+            platforms[i] = platform;
+        }
+
+        SerializedObject arenaSerialized = new SerializedObject(arenaPlatforms);
+        SerializedProperty platformsProp = arenaSerialized.FindProperty("platforms");
+        platformsProp.arraySize = platforms.Length;
+        for (int i = 0; i < platforms.Length; i++)
+            platformsProp.GetArrayElementAtIndex(i).objectReferenceValue = platforms[i];
+        arenaSerialized.ApplyModifiedProperties();
+
+        return arenaPlatforms;
+    }
+
+    private static GameObject CreatePondGhostBoss(Vector3 position, BossArenaPlatforms arenaPlatforms)
+    {
+        GameObject boss = GetOrCreateCapsule("Boss_PondGhost", position);
+        boss.transform.localScale = new Vector3(1.3f, 1.3f, 1.3f);
+        SetRendererColor(boss, new Color(0.3f, 0.45f, 0.55f));
+
+        EnemyHealth health = EnsureComponent<EnemyHealth>(boss);
+        SetField(health, "maxHealth", 150f);
+        SetupEnemyHealthBar(boss, health);
+
+        EnsureComponent<EnemyHitReaction>(boss);
+
+        PondGhostBoss bossScript = EnsureComponent<PondGhostBoss>(boss);
+        SerializedObject bossSerialized = new SerializedObject(bossScript);
+        bossSerialized.FindProperty("arenaPlatforms").objectReferenceValue = arenaPlatforms;
+        bossSerialized.ApplyModifiedProperties();
+
+        return boss;
+    }
+
     private static GameObject GetOrCreateCapsule(string name, Vector3 position)
     {
         GameObject obj = GameObject.Find(name);

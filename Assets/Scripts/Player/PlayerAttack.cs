@@ -28,9 +28,18 @@ public class PlayerAttack : MonoBehaviour
     {
         cooldownTimer -= Time.deltaTime;
 
+        bool attackPressed = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+
+        if (playerMovement != null && playerMovement.IsRestrained)
+        {
+            if (attackPressed)
+                playerMovement.BreakRestrain();
+            return;
+        }
+
         bool isDodging = playerMovement != null && playerMovement.IsDodging;
 
-        if (!isDodging && cooldownTimer <= 0f && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        if (!isDodging && cooldownTimer <= 0f && attackPressed)
         {
             Attack();
             cooldownTimer = attackCooldown;

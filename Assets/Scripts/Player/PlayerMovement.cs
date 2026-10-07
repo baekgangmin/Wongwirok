@@ -24,13 +24,40 @@ public class PlayerMovement : MonoBehaviour
     private float slowMultiplier = 1f;
     private float slowTimer;
 
+    private Coroutine restrainRoutine;
+
     public bool IsDodging { get; private set; }
     public bool IsInvulnerable { get; private set; }
+    public bool IsRestrained { get; private set; }
 
     public void ApplySlow(float multiplier, float duration)
     {
         slowMultiplier = multiplier;
         slowTimer = duration;
+    }
+
+    public void ApplyRestrain(float duration)
+    {
+        if (restrainRoutine != null)
+            StopCoroutine(restrainRoutine);
+        restrainRoutine = StartCoroutine(RestrainRoutine(duration));
+    }
+
+    public void BreakRestrain()
+    {
+        if (!IsRestrained)
+            return;
+
+        if (restrainRoutine != null)
+            StopCoroutine(restrainRoutine);
+        IsRestrained = false;
+    }
+
+    private IEnumerator RestrainRoutine(float duration)
+    {
+        IsRestrained = true;
+        yield return new WaitForSeconds(duration);
+        IsRestrained = false;
     }
 
     private void Awake()
@@ -51,7 +78,7 @@ public class PlayerMovement : MonoBehaviour
                 slowMultiplier = 1f;
         }
 
-        if (IsDodging)
+        if (IsRestrained || IsDodging)
             return;
 
         Vector2 input = ReadMoveInput();

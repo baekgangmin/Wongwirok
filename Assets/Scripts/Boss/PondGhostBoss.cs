@@ -4,10 +4,10 @@ using UnityEngine;
 [RequireComponent(typeof(EnemyHealth))]
 public class PondGhostBoss : MonoBehaviour
 {
-    [Header("Movement")]
-    [SerializeField] private float moveSpeed = 1.5f;
-    [SerializeField] private float detectionRange = 20f;
-    [SerializeField] private float patternRange = 6f;
+    [Header("Detection")]
+    // 보스는 움직이지 않는 고정형 보스라, 이 범위 안에만 들어오면(호수 대부분을 커버) 어디서든
+    // 패턴을 시도한다. 수면 위 물기둥/촉수처럼 사거리가 먼 패턴으로 이동을 대신한다.
+    [SerializeField] private float detectionRange = 30f;
 
     [Header("Pattern 1: Water Pillar")]
     [SerializeField] private float pillarTelegraphDuration = 1f;
@@ -15,9 +15,15 @@ public class PondGhostBoss : MonoBehaviour
     [SerializeField] private float pillarRadius = 1.5f;
 
     [Header("Pattern 2: Hair Grab")]
-    [SerializeField] private float grabRange = 3f;
+    [SerializeField] private float grabRange = 4f;
     [SerializeField] private float grabTelegraphDuration = 0.8f;
     [SerializeField] private float restrainDuration = 2.5f;
+
+    [Header("Pattern 3: Tentacle Strike")]
+    [SerializeField] private float tentacleRange = 14f;
+    [SerializeField] private float tentacleTelegraphDuration = 0.9f;
+    [SerializeField] private float tentacleDamage = 12f;
+    [SerializeField] private int tentacleCount = 3;
 
     [Header("Phase 2")]
     [SerializeField] private float phase2HealthRatio = 0.5f;
@@ -88,39 +94,91 @@ public class PondGhostBoss : MonoBehaviour
         if (health.IsDead || isBusy || player == null)
             return;
 
+        // 보스는 제자리에서 움직이지 않는다 - 플레이어 방향으로 몸만 돌려서 패턴이 자연스럽게 보이게 함.
+        FacePlayer();
+
         float distance = Vector3.Distance(transform.position, player.position);
         if (distance > detectionRange)
             return;
 
-        if (distance > patternRange)
-        {
-            MoveTowardPlayer();
-            return;
-        }
-
         StartCoroutine(RunRandomPattern());
     }
 
-    private void MoveTowardPlayer()
+    private void FacePlayer()
     {
         Vector3 direction = player.position - transform.position;
         direction.y = 0f;
-        direction.Normalize();
+        if (direction.sqrMagnitude < 0.01f)
+            return;
 
-        transform.position += direction * moveSpeed * Time.deltaTime;
-        transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
     }
 
     private IEnumerator RunRandomPattern()
     {
         isBusy = true;
 
-        if (Random.value < 0.5f)
+        float roll = Random.value;
+        if (roll < 0.34f)
             yield return WaterPillarPattern();
-        else
+        else if (roll < 0.67f)
             yield return HairGrabPattern();
+        else
+            yield return TentacleAttackPattern();
 
         isBusy = false;
+    }
+
+    // 보스 등 쪽에서 촉수 여러 개가 부채꼴로 뻗어나와 플레이어 방향을 후려치는 원거리 패턴.
+    // 보스가 움직이지 않는 대신 사거리가 긴 공격으로 거리를 커버한다.
+    private IEnumerator TentacleAttackPattern()
+    {
+        GameObject[] tentacles = new GameObject[tentacleCount];
+        for (int i = 0; i < tentacleCount; i++)
+            tentacles[i] = CreateTentacleIndicator(i, tentacleCount);
+
+        yield return new WaitForSeconds(tentacleTelegraphDuration);
+
+        for (int i = 0; i < tentacles.Length; i++)
+        {
+            if (tentacles[i] != null)
+                Destroy(tentacles[i]);
+        }
+
+        float distance = Vector3.Distance(transform.position, player.position);
+        bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
+
+        if (distance <= tentacleRange && !playerInvulnerable)
+            playerHealth?.TakeDamage(tentacleDamage);
+
+        yield return new WaitForSeconds(0.6f);
+    }
+
+    private GameObject CreateTentacleIndicator(int index, int total)
+    {
+        Vector3 toPlayer = player.position - transform.position;
+        toPlayer.y = 0f;
+        toPlayer = toPlayer.sqrMagnitude > 0.01f ? toPlayer.normalized : transform.forward;
+
+        float spreadAngleDeg = (index - (total - 1) / 2f) * 20f;
+        Vector3 direction = Quaternion.Euler(0f, spreadAngleDeg, 0f) * toPlayer;
+
+        float length = tentacleRange;
+        Vector3 start = transform.position + Vector3.up * 1f - toPlayer * 1.3f;
+        Vector3 end = start + direction * length;
+
+        GameObject tentacle = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        tentacle.name = "TentacleIndicator";
+        Destroy(tentacle.GetComponent<Collider>());
+        tentacle.transform.position = (start + end) * 0.5f;
+        tentacle.transform.rotation = Quaternion.FromToRotation(Vector3.up, direction);
+        tentacle.transform.localScale = new Vector3(0.25f, length * 0.5f, 0.25f);
+
+        Renderer tentacleRenderer = tentacle.GetComponent<Renderer>();
+        if (tentacleRenderer != null)
+            tentacleRenderer.material.color = new Color(0.12f, 0.3f, 0.2f, 1f);
+
+        return tentacle;
     }
 
     private IEnumerator WaterPillarPattern()

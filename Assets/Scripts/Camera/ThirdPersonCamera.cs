@@ -7,7 +7,7 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private Transform target;
 
     [Header("Orbit")]
-    [SerializeField] private float distance = 4f;
+    [SerializeField] private float distance = 5.5f;
     [SerializeField] private float mouseSensitivity = 0.15f;
     [SerializeField] private float minPitch = -30f;
     [SerializeField] private float maxPitch = 60f;

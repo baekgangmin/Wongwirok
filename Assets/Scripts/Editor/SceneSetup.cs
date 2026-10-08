@@ -278,6 +278,10 @@ public static class SceneSetup
     private const float WaterAnkleDepth = 0.18f;
     private const float TerrainHeightRange = 8f;
     private const float TerrainBaseNormalized = 0.5f;
+    // 물 테두리를 호수 경계(LakeRadius)에 딱 맞춰 자르면 포말/투명도 블렌딩 없이 뚝 끊겨 보인다.
+    // 물 반지름을 완만히 올라오는 기슭 지형이 수면보다 높아지는 지점(약 LakeRadius+6) 너머까지
+    // 넉넉히 늘려서, 물 메쉬 자체의 테두리가 아니라 지형이 자연스럽게 물가선을 만들게 한다.
+    private const float WaterMeshRadius = LakeRadius + 10f;
 
     // 터레인이 없는(기존 평지 메뉴) 환경에서는 0을 반환해서 그대로 평평한 바닥을 쓰고,
     // 호수 맵에서는 실제 조각된 터레인 높이를 읽어와서 그 위에 정확히 배치한다.
@@ -453,21 +457,59 @@ public static class SceneSetup
         if (existing != null)
             Object.DestroyImmediate(existing.gameObject);
 
-        GameObject waterObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        waterObject.name = "Water";
+        // 기본 Cylinder는 꼭짓점이 적어(20각형) 매끈한 지형 곡선과 테두리가 안 맞고 각져 보인다.
+        // 꼭짓점 많은 원형 메쉬를 직접 만들어서 테두리를 매끈하게 한다.
+        GameObject waterObject = new GameObject("Water");
         waterObject.transform.SetParent(parent, false);
-        Object.DestroyImmediate(waterObject.GetComponent<Collider>());
+
+        MeshFilter meshFilter = waterObject.AddComponent<MeshFilter>();
+        meshFilter.sharedMesh = CreateCircularMesh(WaterMeshRadius, 96);
 
         float lakeFloorHeight = GetGroundHeight(center);
-        const float waterHalfThickness = 0.05f;
         float waterTopWorldY = lakeFloorHeight + WaterAnkleDepth;
-        waterObject.transform.position = new Vector3(center.x, waterTopWorldY - waterHalfThickness, center.z);
-        waterObject.transform.localScale = new Vector3(LakeRadius * 2f, waterHalfThickness, LakeRadius * 2f);
+        waterObject.transform.position = new Vector3(center.x, waterTopWorldY, center.z);
 
         Material waterMaterial = GetOrCreateLakeWaterMaterial();
-        MeshRenderer meshRenderer = waterObject.GetComponent<MeshRenderer>();
+        MeshRenderer meshRenderer = waterObject.AddComponent<MeshRenderer>();
         if (waterMaterial != null)
             meshRenderer.sharedMaterial = waterMaterial;
+    }
+
+    // 중심에서 부채꼴로 삼각분할한 평평한 원판 메쉬 (XZ 평면, 위쪽을 향하는 법선).
+    private static Mesh CreateCircularMesh(float radius, int segments)
+    {
+        Mesh mesh = new Mesh { name = "CircularWaterMesh" };
+
+        Vector3[] vertices = new Vector3[segments + 1];
+        Vector2[] uvs = new Vector2[segments + 1];
+        int[] triangles = new int[segments * 3];
+
+        vertices[0] = Vector3.zero;
+        uvs[0] = new Vector2(0.5f, 0.5f);
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = (i / (float)segments) * Mathf.PI * 2f;
+            float x = Mathf.Cos(angle) * radius;
+            float z = Mathf.Sin(angle) * radius;
+            vertices[i + 1] = new Vector3(x, 0f, z);
+            uvs[i + 1] = new Vector2(0.5f + Mathf.Cos(angle) * 0.5f, 0.5f + Mathf.Sin(angle) * 0.5f);
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            int next = (i + 1) % segments;
+            triangles[i * 3] = 0;
+            triangles[i * 3 + 1] = next + 1;
+            triangles[i * 3 + 2] = i + 1;
+        }
+
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     // 에셋 원본 샘플 머티리얼(water material sample.mat)은 예전 Pro 셰이더용 값이 섞여 있어 신뢰할 수
@@ -513,7 +555,10 @@ public static class SceneSetup
         material.SetFloat("_ReflectionStrength", 0.15f);
 
         material.SetColor("_FoamColor", new Color(0.75f, 0.75f, 0.68f, 1f));
-        material.SetFloat("_FoamDistance", 0.25f);
+        // foamLine = smoothstep(_FoamDistance, 0, depthY) - 발목 수심(WaterAnkleDepth=0.18)보다
+        // 크게 잡으면 호수 바닥 전체가 거품 범위에 들어가서 물 전체가 하얗게 뜬다. 실제 물가(수심이
+        // 0에 가까워지는 선)에서만 거품이 생기도록 수심보다 확실히 작게 잡는다.
+        material.SetFloat("_FoamDistance", 0.06f);
         material.SetFloat("_FoamTiling", 2f);
         material.SetFloat("_FoamSpeed", 0.08f);
 
@@ -707,6 +752,73 @@ public static class SceneSetup
 
         Selection.activeGameObject = boss;
         Debug.Log("Wongwirok: 호수 전체 맵 생성 완료 - 잡몹을 모두 처치하면 보스가 호수 중앙에서 떠오름");
+    }
+
+    // 터레인/안개를 에디터에서 손으로 직접 조정한 뒤(높이 등), 다시 만들지 않고 기존 몹/나무/
+    // 보스/물/플레이어의 Y값만 지금 터레인 높이에 맞춰 재배치한다. CreateLakeTerrain은 건드리지
+    // 않으므로 수동으로 바꾼 터레인 위치/안개 값은 그대로 유지된다.
+    [MenuItem("Wongwirok/Resnap Objects To Terrain (터레인 높이에 맞춰 재배치)")]
+    public static void ResnapObjectsToTerrain()
+    {
+        int count = 0;
+
+        foreach (Transform t in FindRootTransformsStartingWith("Mob_"))
+        {
+            Vector3 position = t.position;
+            float offset = t.name.Contains("WillOWisp") ? 1.5f : 1f;
+            position.y = GetGroundHeight(position) + offset;
+            t.position = position;
+            count++;
+        }
+
+        foreach (Transform t in FindRootTransformsStartingWith("TreeDummy_"))
+        {
+            Vector3 position = t.position;
+            float height = t.localScale.y * 2f;
+            position.y = GetGroundHeight(position) + height * 0.5f;
+            t.position = position;
+            count++;
+        }
+
+        GameObject boss = GameObject.Find("Boss_PondGhost");
+        if (boss != null)
+        {
+            Vector3 position = boss.transform.position;
+            position.y = GetGroundHeight(position) + 1.3f;
+            boss.transform.position = position;
+            count++;
+        }
+
+        GameObject water = GameObject.Find("Water");
+        if (water != null)
+        {
+            Vector3 position = water.transform.position;
+            position.y = GetGroundHeight(position) + WaterAnkleDepth;
+            water.transform.position = position;
+            count++;
+        }
+
+        GameObject player = GameObject.Find("Player");
+        if (player != null)
+        {
+            Vector3 position = player.transform.position;
+            position.y = GetGroundHeight(position) + 1f;
+            player.transform.position = position;
+            count++;
+        }
+
+        Debug.Log($"Wongwirok: 터레인 높이에 맞춰 오브젝트 {count}개 재배치 완료 (터레인/안개 값은 그대로 유지)");
+    }
+
+    private static System.Collections.Generic.List<Transform> FindRootTransformsStartingWith(string prefix)
+    {
+        System.Collections.Generic.List<Transform> matches = new System.Collections.Generic.List<Transform>();
+        foreach (GameObject go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (go.transform.parent == null && go.name.StartsWith(prefix))
+                matches.Add(go.transform);
+        }
+        return matches;
     }
 
     private static GameObject[] CreateTreesAround(Vector3 center, int count, float minRadius, float maxRadius)

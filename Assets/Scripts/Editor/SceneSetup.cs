@@ -175,6 +175,17 @@ public static class SceneSetup
         return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
     }
 
+    // RandomPointAround과 달리 "호수 경계에서 얼마나 안쪽/바깥쪽인가(offset, 음수면 안쪽)"로
+    // 거리를 정한다. 호수가 불규칙한 모양이라 각도마다 실제 가장자리까지 거리가 다르므로, 먼저
+    // 각도를 고른 뒤 그 각도에서의 실제 호수 반지름(LakeRadiusAt)을 기준으로 삼아야 한다.
+    private static Vector3 RandomPointAtLakeOffset(Vector3 center, float offsetMin, float offsetMax)
+    {
+        float angle = Random.Range(0f, Mathf.PI * 2f);
+        float localLakeRadius = LakeRadiusAt(angle);
+        float distance = Mathf.Max(0f, localLakeRadius + Random.Range(offsetMin, offsetMax));
+        return center + new Vector3(Mathf.Sin(angle) * distance, 0f, Mathf.Cos(angle) * distance);
+    }
+
     private static GameObject CreateWaterHand(string name, Vector3 position)
     {
         position.y = GetGroundHeight(position) + 1f;
@@ -270,7 +281,29 @@ public static class SceneSetup
 
     private const float LakeRadius = 30f;
     private const float ShoreRadius = LakeRadius + 20f;
-    private const float TerrainOuterRadius = ShoreRadius + 20f;
+    // 호수가 불규칙한 모양이라 테두리가 가장 많이 튀어나온 방향에서도 기슭/외곽 평지 링이
+    // 잘리지 않도록, 완전한 원일 때보다 여유 마진을 조금 더 둔다.
+    private const float TerrainOuterRadius = ShoreRadius + 30f;
+
+    // 사용자가 그려준 참고 그림(완전한 원이 아니라 한쪽이 움푹 들어간 불규칙한 호수)에 맞춰,
+    // 각도(angleRad, Atan2(dx, dz) 기준 - 나무/몹 배치와 동일한 각도 규약)에 따라 호수 반지름이
+    // 달라지게 한다. 저차수 사인파 몇 개로 전체적인 울퉁불퉁함을 주고, 한쪽 각도 구간에는
+    // 가우시안 모양으로 깊게 파인 "만입부"를 하나 더해서 그림의 움푹 들어간 부분을 재현한다.
+    private static float LakeRadiusAt(float angleRad)
+    {
+        float r = LakeRadius;
+        r += LakeRadius * 0.10f * Mathf.Sin(2f * angleRad + 0.4f);
+        r += LakeRadius * 0.06f * Mathf.Sin(3f * angleRad + 2.0f);
+        r += LakeRadius * 0.04f * Mathf.Sin(5f * angleRad + 1.3f);
+
+        const float notchAngle = 3.6f;
+        const float notchWidth = 0.3f;
+        float notchDepth = LakeRadius * 0.4f;
+        float angleDiff = Mathf.Repeat(angleRad - notchAngle + Mathf.PI, Mathf.PI * 2f) - Mathf.PI;
+        r -= notchDepth * Mathf.Exp(-(angleDiff * angleDiff) / (2f * notchWidth * notchWidth));
+
+        return Mathf.Max(r, LakeRadius * 0.4f);
+    }
     // 3f/0.8f로 했더니 호수가 깊은 구덩이처럼 보여서, 물 위에서 전투하는 것처럼 보이도록
     // 사용자가 그려준 그림(땅은 거의 평평하고 물만 살짝 낮은 웅덩이)에 맞춰 다시 낮춤.
     private const float LakeFloorDrop = 0.5f;
@@ -326,7 +359,11 @@ public static class SceneSetup
     // 호수 테두리 밖은 완만하게 높아졌다가 다시 평지로 이어진다 (경계 단차 없이 부드러운 경사).
     private static void CreateLakeTerrain(Vector3 center)
     {
+        // 터레인을 다시 만들 때마다 Y 위치를 기본값으로 되돌리면, 사용자가 에디터에서 손으로
+        // 조정해 둔 터레인 높이(안개 높이와 맞춰놓은 값)가 테스트/재생성할 때마다 날아간다.
+        // 기존 터레인이 있으면 그 Y 위치를 읽어서 그대로 이어간다.
         GameObject existingTerrain = GameObject.Find("LakeTerrain");
+        float? preservedY = existingTerrain != null ? existingTerrain.transform.position.y : (float?)null;
         if (existingTerrain != null)
             Object.DestroyImmediate(existingTerrain);
 
@@ -349,19 +386,23 @@ public static class SceneSetup
                 float worldZ = (zi / (float)(heightmapResolution - 1)) * terrainSize - terrainSize * 0.5f;
                 float dist = Mathf.Sqrt(worldX * worldX + worldZ * worldZ);
 
+                float localLakeRadius = LakeRadiusAt(Mathf.Atan2(worldX, worldZ));
+                float localShoreRadius = localLakeRadius + (ShoreRadius - LakeRadius);
+                float localOuterRadius = localShoreRadius + (TerrainOuterRadius - ShoreRadius);
+
                 float h;
-                if (dist <= LakeRadius)
+                if (dist <= localLakeRadius)
                 {
                     h = TerrainBaseNormalized - lakeDropNorm;
                 }
-                else if (dist <= ShoreRadius)
+                else if (dist <= localShoreRadius)
                 {
-                    float t = Mathf.SmoothStep(0f, 1f, (dist - LakeRadius) / (ShoreRadius - LakeRadius));
+                    float t = Mathf.SmoothStep(0f, 1f, (dist - localLakeRadius) / (localShoreRadius - localLakeRadius));
                     h = Mathf.Lerp(TerrainBaseNormalized - lakeDropNorm, TerrainBaseNormalized + shoreRiseNorm, t);
                 }
-                else if (dist <= TerrainOuterRadius)
+                else if (dist <= localOuterRadius)
                 {
-                    float t = Mathf.SmoothStep(0f, 1f, (dist - ShoreRadius) / (TerrainOuterRadius - ShoreRadius));
+                    float t = Mathf.SmoothStep(0f, 1f, (dist - localShoreRadius) / (localOuterRadius - localShoreRadius));
                     h = Mathf.Lerp(TerrainBaseNormalized + shoreRiseNorm, TerrainBaseNormalized, t);
                 }
                 else
@@ -376,9 +417,10 @@ public static class SceneSetup
 
         GameObject terrainObject = Terrain.CreateTerrainGameObject(terrainData);
         terrainObject.name = "LakeTerrain";
+        float terrainY = preservedY ?? (-TerrainBaseNormalized * TerrainHeightRange);
         terrainObject.transform.position = new Vector3(
             center.x - terrainSize * 0.5f,
-            -TerrainBaseNormalized * TerrainHeightRange,
+            terrainY,
             center.z - terrainSize * 0.5f);
 
         ApplyTerrainTextures(terrainData, terrainSize);
@@ -409,8 +451,9 @@ public static class SceneSetup
                 float worldX = (xi / (float)(alphaRes - 1)) * terrainSize - terrainSize * 0.5f;
                 float worldZ = (zi / (float)(alphaRes - 1)) * terrainSize - terrainSize * 0.5f;
                 float dist = Mathf.Sqrt(worldX * worldX + worldZ * worldZ);
+                float localLakeRadius = LakeRadiusAt(Mathf.Atan2(worldX, worldZ));
 
-                float shoreWeight = Mathf.Clamp01(Mathf.SmoothStep(0f, 1f, (dist - LakeRadius) / blendWidth));
+                float shoreWeight = Mathf.Clamp01(Mathf.SmoothStep(0f, 1f, (dist - localLakeRadius) / blendWidth));
 
                 alphamap[zi, xi, 0] = 1f - shoreWeight;
                 alphamap[zi, xi, 1] = shoreWeight;
@@ -463,7 +506,7 @@ public static class SceneSetup
         waterObject.transform.SetParent(parent, false);
 
         MeshFilter meshFilter = waterObject.AddComponent<MeshFilter>();
-        meshFilter.sharedMesh = CreateCircularMesh(WaterMeshRadius, 96);
+        meshFilter.sharedMesh = CreateLakeShapedMesh(WaterMeshRadius - LakeRadius, 96);
 
         float lakeFloorHeight = GetGroundHeight(center);
         float waterTopWorldY = lakeFloorHeight + WaterAnkleDepth;
@@ -475,10 +518,12 @@ public static class SceneSetup
             meshRenderer.sharedMaterial = waterMaterial;
     }
 
-    // 중심에서 부채꼴로 삼각분할한 평평한 원판 메쉬 (XZ 평면, 위쪽을 향하는 법선).
-    private static Mesh CreateCircularMesh(float radius, int segments)
+    // 중심에서 부채꼴로 삼각분할한 평평한 호수 모양 메쉬 (XZ 평면, 위쪽을 향하는 법선).
+    // LakeRadiusAt()으로 각도별 호수 반지름을 구하고, 그 바깥으로 marginBeyondLakeEdge만큼 더
+    // 늘려서 물 테두리가 (원이 아니라) 불규칙한 호수 모양을 그대로 따라가게 한다.
+    private static Mesh CreateLakeShapedMesh(float marginBeyondLakeEdge, int segments)
     {
-        Mesh mesh = new Mesh { name = "CircularWaterMesh" };
+        Mesh mesh = new Mesh { name = "LakeShapedWaterMesh" };
 
         Vector3[] vertices = new Vector3[segments + 1];
         Vector2[] uvs = new Vector2[segments + 1];
@@ -489,11 +534,16 @@ public static class SceneSetup
 
         for (int i = 0; i < segments; i++)
         {
-            float angle = (i / (float)segments) * Mathf.PI * 2f;
-            float x = Mathf.Cos(angle) * radius;
-            float z = Mathf.Sin(angle) * radius;
+            // 메쉬는 기존처럼 x=cos, z=sin 파라미터화(각도 phi)를 그대로 유지해서 삼각형
+            // 와인딩(법선 방향)이 바뀌지 않게 하고, LakeRadiusAt()에는 지형 쪽과 같은 각도 규약
+            // (Atan2(x, z), 즉 worldAngle = PI/2 - phi)으로 변환한 값을 넣어 모양만 맞춘다.
+            float phi = (i / (float)segments) * Mathf.PI * 2f;
+            float worldAngle = Mathf.PI * 0.5f - phi;
+            float radius = LakeRadiusAt(worldAngle) + marginBeyondLakeEdge;
+            float x = Mathf.Cos(phi) * radius;
+            float z = Mathf.Sin(phi) * radius;
             vertices[i + 1] = new Vector3(x, 0f, z);
-            uvs[i + 1] = new Vector2(0.5f + Mathf.Cos(angle) * 0.5f, 0.5f + Mathf.Sin(angle) * 0.5f);
+            uvs[i + 1] = new Vector2(0.5f + Mathf.Cos(phi) * 0.5f, 0.5f + Mathf.Sin(phi) * 0.5f);
         }
 
         for (int i = 0; i < segments; i++)
@@ -741,9 +791,9 @@ public static class SceneSetup
         ApplySunsetSkybox();
         SetupHeightFog();
         CreateBossArena(lakeCenter);
-        CreateTreesAround(lakeCenter, 24, LakeRadius + 3f, LakeRadius + 14f);
+        CreateTreesAround(lakeCenter, 24, 3f, 14f);
 
-        EnemyHealth[] mobHealths = CreateMobsAroundLakeEdge(lakeCenter, LakeRadius - 12f);
+        EnemyHealth[] mobHealths = CreateMobsAroundLakeEdge(lakeCenter);
 
         // 처음엔 숨어있다가 잡몹을 다 잡으면 떠오르도록, Stage1Director가 활성화 전까지
         // PondGhostBoss 스크립트와 콜라이더를 꺼둔다.
@@ -821,7 +871,11 @@ public static class SceneSetup
         return matches;
     }
 
-    private static GameObject[] CreateTreesAround(Vector3 center, int count, float minRadius, float maxRadius)
+    // minMargin/maxMargin은 "호수 경계 바깥으로 최소/최대 얼마나 떨어지는가"이다 (호수 반지름
+    // 자체는 각도마다 LakeRadiusAt()으로 다르므로, 고정 반지름이 아니라 각 나무의 각도에서의
+    // 실제 호수 가장자리를 기준으로 margin만큼 바깥에 놓아야 불규칙한 호수 모양에서도 나무가
+    // 물 안쪽에 들어가지 않는다).
+    private static GameObject[] CreateTreesAround(Vector3 center, int count, float minMargin, float maxMargin)
     {
         GameObject[] trees = new GameObject[count];
         float angleStepDeg = 360f / count;
@@ -832,7 +886,8 @@ public static class SceneSetup
 
             float angleDeg = i * angleStepDeg + Random.Range(-angleStepDeg * 0.35f, angleStepDeg * 0.35f);
             float angleRad = angleDeg * Mathf.Deg2Rad;
-            float radius = Random.Range(minRadius, maxRadius);
+            float localLakeRadius = LakeRadiusAt(angleRad);
+            float radius = localLakeRadius + Random.Range(minMargin, maxMargin);
             Vector3 position = center + new Vector3(Mathf.Sin(angleRad) * radius, 0f, Mathf.Cos(angleRad) * radius);
 
             GameObject tree = GameObject.Find(treeName);
@@ -856,16 +911,18 @@ public static class SceneSetup
         return trees;
     }
 
-    private static EnemyHealth[] CreateMobsAroundLakeEdge(Vector3 center, float radius)
+    private static EnemyHealth[] CreateMobsAroundLakeEdge(Vector3 center)
     {
-        // 잡몹은 터레인으로 낮아진 호수 안쪽 바닥 위에 선다 (높이는 각 Create 함수가 직접 샘플링)
+        // 잡몹은 터레인으로 낮아진 호수 안쪽 바닥 위에 선다 (높이는 각 Create 함수가 직접 샘플링).
+        // 호수 가장자리에서 8~12만큼 안쪽(offset이 음수)에 놓는다 - 호수가 불규칙한 모양이라
+        // 각도마다 실제 가장자리 반지름이 다르므로 RandomPointAtLakeOffset으로 계산한다.
         GameObject[] mobs = new GameObject[6];
-        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAround(center, radius, radius + 4f));
-        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAround(center, radius, radius + 4f));
-        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAround(center, radius, radius + 4f));
-        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAround(center, radius, radius + 4f));
+        mobs[0] = CreateWaterHand("Mob_WaterHand_1", RandomPointAtLakeOffset(center, -12f, -8f));
+        mobs[1] = CreateWaterHand("Mob_WaterHand_2", RandomPointAtLakeOffset(center, -12f, -8f));
+        mobs[2] = CreateDrownedCourtLady("Mob_DrownedCourtLady_1", RandomPointAtLakeOffset(center, -12f, -8f));
+        mobs[3] = CreateDrownedCourtLady("Mob_DrownedCourtLady_2", RandomPointAtLakeOffset(center, -12f, -8f));
+        mobs[4] = CreateWillOWisp("Mob_WillOWisp_1", RandomPointAtLakeOffset(center, -12f, -8f));
+        mobs[5] = CreateWillOWisp("Mob_WillOWisp_2", RandomPointAtLakeOffset(center, -12f, -8f));
 
         EnemyHealth[] healths = new EnemyHealth[mobs.Length];
         for (int i = 0; i < mobs.Length; i++)

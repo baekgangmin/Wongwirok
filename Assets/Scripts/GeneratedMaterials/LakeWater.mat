@@ -33,7 +33,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _FoamDistance: 0.25
+    - _FoamDistance: 0.06
     - _FoamSpeed: 0.08
     - _FoamTiling: 2
     - _FresnelPower: 7

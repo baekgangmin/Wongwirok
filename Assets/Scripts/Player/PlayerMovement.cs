@@ -17,6 +17,7 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
+    [SerializeField] private Animator animator;
 
     private CharacterController controller;
     private float verticalVelocity;
@@ -65,6 +66,8 @@ public class PlayerMovement : MonoBehaviour
         controller = GetComponent<CharacterController>();
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
     }
 
     private void Update()
@@ -95,6 +98,9 @@ public class PlayerMovement : MonoBehaviour
         }
 
         Vector3 move = CameraRelativeMove(input);
+
+        if (animator != null)
+            animator.SetFloat("Speed", move.magnitude);
 
         if (move.sqrMagnitude > 0.0001f)
         {

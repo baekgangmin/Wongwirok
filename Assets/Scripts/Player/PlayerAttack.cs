@@ -15,6 +15,7 @@ public class PlayerAttack : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private Animator animator;
 
     private float cooldownTimer;
 
@@ -22,6 +23,8 @@ public class PlayerAttack : MonoBehaviour
     {
         if (playerMovement == null)
             playerMovement = GetComponent<PlayerMovement>();
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
     }
 
     private void Update()
@@ -48,6 +51,9 @@ public class PlayerAttack : MonoBehaviour
 
     private void Attack()
     {
+        if (animator != null)
+            animator.SetTrigger("Attack");
+
         if (weaponSwing != null)
             weaponSwing.PlaySwing();
 

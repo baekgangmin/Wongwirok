@@ -8,6 +8,8 @@ public class EnemyHitReaction : MonoBehaviour
     [SerializeField] private Color hitColor = Color.red;
     [SerializeField] private float hitFlashDuration = 0.1f;
     [SerializeField] private float deathSinkDuration = 1f;
+    [Tooltip("죽는 동작이 있으면, 이 시간만큼 동작을 보여준 뒤 땅속으로 가라앉는다")]
+    [SerializeField] private float deathAnimDelay = 0f;
 
     private EnemyHealth health;
     private Color originalColor;
@@ -60,6 +62,9 @@ public class EnemyHitReaction : MonoBehaviour
         Collider col = GetComponent<Collider>();
         if (col != null)
             col.enabled = false;
+
+        if (deathAnimDelay > 0f)
+            yield return new WaitForSeconds(deathAnimDelay);
 
         Vector3 startPosition = transform.position;
         Vector3 endPosition = startPosition + Vector3.down * 1f;

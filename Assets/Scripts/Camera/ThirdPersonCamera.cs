@@ -15,6 +15,27 @@ public class ThirdPersonCamera : MonoBehaviour
     private float yaw;
     private float pitch = 15f;
 
+    // 화면 흔들림 (피격 등)
+    public static ThirdPersonCamera Instance { get; private set; }
+    private float shakeAmplitude;
+    private float shakeDuration;
+    private float shakeTimer;
+
+    public void Shake(float amplitude, float duration)
+    {
+        if (amplitude >= shakeAmplitude * (shakeDuration > 0f ? shakeTimer / shakeDuration : 0f))
+        {
+            shakeAmplitude = amplitude;
+            shakeDuration = duration;
+            shakeTimer = duration;
+        }
+    }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
     private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
@@ -44,7 +65,19 @@ public class ThirdPersonCamera : MonoBehaviour
         pitch = Mathf.Clamp(pitch - lookDelta.y * mouseSensitivity, minPitch, maxPitch);
 
         Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
-        transform.SetPositionAndRotation(target.position - rotation * Vector3.forward * distance, rotation);
+        Vector3 position = target.position - rotation * Vector3.forward * distance;
+
+        if (shakeTimer > 0f)
+        {
+            // 타격 멈춤 중에도 흔들리도록 실제 시간 기준
+            shakeTimer -= Time.unscaledDeltaTime;
+            float strength = shakeAmplitude * Mathf.Clamp01(shakeTimer / shakeDuration);
+            float t = Time.unscaledTime * 35f;
+            Vector3 offset = new Vector3(Mathf.PerlinNoise(t, 0.3f) - 0.5f, Mathf.PerlinNoise(0.7f, t) - 0.5f, 0f) * 2f * strength;
+            position += rotation * offset;
+        }
+
+        transform.SetPositionAndRotation(position, rotation);
     }
 
     private Vector2 ReadLookInput()

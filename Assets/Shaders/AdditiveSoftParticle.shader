@@ -3,6 +3,7 @@ Shader "Wongwirok/AdditiveSoftParticle"
 {
     Properties
     {
+        _Color ("Tint", Color) = (1, 1, 1, 1)
         _Intensity ("Intensity", Float) = 2
         _Softness ("Softness", Range(0.5, 4)) = 1.5
     }
@@ -36,6 +37,7 @@ Shader "Wongwirok/AdditiveSoftParticle"
             };
 
             CBUFFER_START(UnityPerMaterial)
+                half4 _Color;
                 half _Intensity;
                 half _Softness;
             CBUFFER_END
@@ -53,7 +55,7 @@ Shader "Wongwirok/AdditiveSoftParticle"
             {
                 half d = length(i.uv * 2.0 - 1.0);
                 half falloff = pow(saturate(1.0 - d), _Softness);
-                half4 c = i.color;
+                half4 c = i.color * _Color;
                 c.rgb *= _Intensity;
                 c.a *= falloff;
                 return c;

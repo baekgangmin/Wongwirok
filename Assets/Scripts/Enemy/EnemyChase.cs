@@ -9,11 +9,13 @@ public class EnemyChase : MonoBehaviour
 
     private EnemyHealth health;
     private IEnemyAttack enemyAttack;
+    private EnemyAnimationDriver animationDriver;
 
     private void Awake()
     {
         health = GetComponent<EnemyHealth>();
         enemyAttack = GetComponent<IEnemyAttack>();
+        animationDriver = GetComponent<EnemyAnimationDriver>();
 
         if (player == null)
         {
@@ -30,6 +32,9 @@ public class EnemyChase : MonoBehaviour
 
         if (enemyAttack != null && enemyAttack.IsBusy)
             return;
+
+        if (animationDriver != null && animationDriver.IsReacting)
+            return;   // 맞고 움찔하는 동안은 쫓아오지 않음
 
         float stoppingDistance = enemyAttack != null ? enemyAttack.AttackRange : 2f;
 

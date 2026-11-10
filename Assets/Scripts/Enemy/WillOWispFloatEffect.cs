@@ -27,6 +27,23 @@ public class WillOWispFloatEffect : MonoBehaviour
     [SerializeField] private float distortSpeed = 2.5f;
     [SerializeField] private float distortNoiseScale = 4f;
 
+    [Header("Attack Charge (원거리 공격 직전 부풀기)")]
+    [SerializeField] private float chargeScale = 0.3f;        // 최대로 차올랐을 때 커지는 비율
+    [SerializeField] private float chargeBrightness = 2.5f;   // 최대로 차올랐을 때 밝기 배율
+    [SerializeField] private float recoilTime = 0.25f;
+
+    // 0 = 평소, 1 = 공격 직전 최대로 차오름
+    public float Charge { get; set; }
+
+    private Vector3 baseScale;
+    private float recoilTimer;
+
+    public void Recoil()
+    {
+        Charge = 0f;
+        recoilTimer = recoilTime;
+    }
+
     private Vector3 basePosition;
     private Material flameMaterialInstance;
     private float noiseSeed;
@@ -41,6 +58,7 @@ public class WillOWispFloatEffect : MonoBehaviour
         if (visual == null)
             visual = transform;
         basePosition = visual.localPosition;
+        baseScale = visual.localScale;
 
         if (flameRenderer != null)
         {
@@ -76,14 +94,26 @@ public class WillOWispFloatEffect : MonoBehaviour
         );
         visual.localPosition = basePosition + offset;
 
+        // 공격 직전 차오름: 떨리면서 부풀고, 쏜 직후엔 살짝 움츠렸다 돌아온다
+        float charge = Mathf.Clamp01(Charge);
+        float shiver = charge > 0f ? Mathf.Sin(t * 60f) * 0.04f * charge : 0f;
+        float recoil = 0f;
+        if (recoilTimer > 0f)
+        {
+            recoilTimer -= Time.deltaTime;
+            recoil = -0.2f * Mathf.Sin(Mathf.Clamp01(1f - recoilTimer / recoilTime) * Mathf.PI);
+        }
+        visual.localScale = baseScale * (1f + chargeScale * charge + shiver + recoil);
+
         float flicker = Mathf.PerlinNoise(t * flickerSpeed, noiseSeed);
-        float intensity = Mathf.Lerp(emissionMinIntensity, emissionMaxIntensity, flicker);
+        float boost = 1f + (chargeBrightness - 1f) * charge;
+        float intensity = Mathf.Lerp(emissionMinIntensity, emissionMaxIntensity, flicker) * boost;
 
         if (flameMaterialInstance != null)
             flameMaterialInstance.SetColor("_EmissionColor", flameColor * intensity);
 
         if (flameLight != null)
-            flameLight.intensity = Mathf.Lerp(lightMinIntensity, lightMaxIntensity, flicker);
+            flameLight.intensity = Mathf.Lerp(lightMinIntensity, lightMaxIntensity, flicker) * boost;
 
         if (flameMeshInstance != null)
         {

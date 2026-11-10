@@ -32,10 +32,13 @@ public class PlayerMovement : MonoBehaviour
     public bool IsInvulnerable { get; private set; }
     public bool IsRestrained { get; private set; }
 
+    public event System.Action OnSlowed;
+
     public void ApplySlow(float multiplier, float duration)
     {
         slowMultiplier = multiplier;
         slowTimer = duration;
+        OnSlowed?.Invoke();
     }
 
     public void ApplyRestrain(float duration)

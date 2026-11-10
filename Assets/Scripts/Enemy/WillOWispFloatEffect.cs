@@ -50,7 +50,12 @@ public class WillOWispFloatEffect : MonoBehaviour
 
         noiseSeed = Random.Range(0f, 100f);
 
-        if (flameMeshFilter != null)
+        if (flameMeshFilter != null && flameMeshFilter.sharedMesh != null && !flameMeshFilter.sharedMesh.isReadable)
+        {
+            // 모델의 Read/Write가 꺼져 있으면 정점을 바꿀 수 없으므로, 매 프레임 오류를 내는 대신 꿀렁임 효과만 건너뛴다.
+            Debug.LogWarning($"[{name}] '{flameMeshFilter.sharedMesh.name}' 메시의 Read/Write가 꺼져 있어 불꽃 꿀렁임 효과를 건너뜁니다. 모델 Import 설정에서 Read/Write를 켜 주세요.", this);
+        }
+        else if (flameMeshFilter != null && flameMeshFilter.sharedMesh != null)
         {
             flameMeshInstance = Instantiate(flameMeshFilter.sharedMesh);
             flameMeshFilter.mesh = flameMeshInstance;

@@ -48,6 +48,17 @@ public class PlayerAttack : MonoBehaviour
     [Header("Visual")]
     [SerializeField] private WeaponSwing weaponSwing;
     [SerializeField] private SwordSlashTrail slashTrail;
+    [Tooltip("적중 시 맞은 자리에서 튀는 불꽃 효과 (색은 장착한 검의 궤적 색을 따름)")]
+    [SerializeField] private ParticleSystem hitEffectPrefab;
+    [SerializeField] private float strongHitEffectScale = 1.5f;
+
+    [Header("타격 멈춤 (맞는 순간 게임이 잠깐 멈칫)")]
+    [SerializeField] private bool useHitStop = true;
+    [SerializeField] private float hitStopDuration = 0.05f;
+    [SerializeField] private float strongHitStopDuration = 0.09f;
+    [SerializeField, Range(0f, 1f)] private float hitStopTimeScale = 0.05f;
+
+    private Coroutine hitStopRoutine;
 
     [Header("References")]
     [SerializeField] private PlayerMovement playerMovement;
@@ -127,7 +138,7 @@ public class PlayerAttack : MonoBehaviour
         if (!hitDone && CurrentStateTime() >= comboHits[currentStep].hitTime)
         {
             hitDone = true;
-            DealDamage(AttackPower * comboHits[currentStep].damageMultiplier);
+            DealDamage(AttackPower * comboHits[currentStep].damageMultiplier, currentStep == comboHits.Length - 1);
         }
     }
 
@@ -191,17 +202,98 @@ public class PlayerAttack : MonoBehaviour
         return -1;
     }
 
-    private void DealDamage(float damage)
+    private readonly System.Collections.Generic.List<EnemyHealth> hitThisSwing = new System.Collections.Generic.List<EnemyHealth>();
+
+    private void DealDamage(float damage, bool strongHit)
     {
         Vector3 attackPoint = transform.position + transform.forward * attackRange;
         Collider[] hits = Physics.OverlapSphere(attackPoint, attackRadius, enemyLayers);
 
+        hitThisSwing.Clear();
         foreach (Collider hit in hits)
         {
             EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
-            if (enemyHealth != null)
-                enemyHealth.TakeDamage(damage);
+            if (enemyHealth == null || enemyHealth.IsDead || hitThisSwing.Contains(enemyHealth))
+                continue;   // 한 번 휘두를 때 적 하나당 한 번만
+
+            hitThisSwing.Add(enemyHealth);
+            enemyHealth.TakeDamage(damage);
+            SpawnHitEffect(hit, attackPoint, strongHit);
         }
+
+        if (hitThisSwing.Count > 0)
+            StartHitStop(strongHit ? strongHitStopDuration : hitStopDuration);
+    }
+
+    private void StartHitStop(float duration)
+    {
+        if (!useHitStop || duration <= 0f)
+            return;
+        // 일시정지 등 다른 이유로 이미 시간이 멈춰 있으면 건드리지 않는다.
+        if (hitStopRoutine == null && Time.timeScale < 0.99f)
+            return;
+
+        if (hitStopRoutine != null)
+            StopCoroutine(hitStopRoutine);
+        hitStopRoutine = StartCoroutine(HitStopRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator HitStopRoutine(float duration)
+    {
+        Time.timeScale = hitStopTimeScale;
+        yield return new WaitForSecondsRealtime(duration);
+        Time.timeScale = 1f;
+        hitStopRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        // 멈춘 상태로 오브젝트가 꺼지면 시간이 계속 느려지지 않도록 복구
+        if (hitStopRoutine != null)
+        {
+            StopCoroutine(hitStopRoutine);
+            hitStopRoutine = null;
+            Time.timeScale = 1f;
+        }
+    }
+
+    private void SpawnHitEffect(Collider target, Vector3 attackPoint, bool strongHit)
+    {
+        if (hitEffectPrefab == null)
+            return;
+
+        // 칼날 가운데에서 가장 가까운 적 몸 표면을 맞은 자리로 본다.
+        Vector3 from = attackPoint;
+        if (slashTrail != null && slashTrail.TryGetBladeMidPoint(out Vector3 blade))
+            from = blade;
+        bool canClosest = !(target is MeshCollider mc && !mc.convex);
+        Vector3 point = canClosest ? target.ClosestPoint(from) : target.bounds.ClosestPoint(from);
+        if ((point - from).sqrMagnitude < 0.0001f)
+            point = target.bounds.center;
+
+        ParticleSystem fx = Instantiate(hitEffectPrefab, point, Quaternion.LookRotation(from - point == Vector3.zero ? -transform.forward : (from - point).normalized));
+        if (strongHit)
+            fx.transform.localScale *= strongHitEffectScale;
+
+        Color c = equippedSword != null ? equippedSword.trailColor.Evaluate(0f) : Color.white;
+        c.a = 1f;
+        foreach (ParticleSystem ps in fx.GetComponentsInChildren<ParticleSystem>())
+        {
+            var main = ps.main;
+            main.startColor = c;
+            if (strongHit)
+            {
+                var emission = ps.emission;
+                if (emission.burstCount > 0)
+                {
+                    var burst = emission.GetBurst(0);
+                    burst.count = new ParticleSystem.MinMaxCurve(burst.count.constant * strongHitEffectScale);
+                    emission.SetBurst(0, burst);
+                }
+            }
+        }
+        fx.Play(true);
+        Destroy(fx.gameObject, 1.5f);
     }
 
     private void OnDrawGizmosSelected()

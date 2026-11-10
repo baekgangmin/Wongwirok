@@ -39,6 +39,16 @@ public class SwordSlashTrail : MonoBehaviour
     private bool strong;
     private bool newSegment = true;
 
+    // 칼날 가운데 지점 (적중 효과 위치 계산용)
+    public bool TryGetBladeMidPoint(out Vector3 point)
+    {
+        point = Vector3.zero;
+        if (bladeBase == null || bladeTip == null)
+            return false;
+        point = Vector3.Lerp(bladeBase.position, bladeTip.position, 0.6f);
+        return true;
+    }
+
     public void SetColor(Gradient gradient)
     {
         if (gradient != null)

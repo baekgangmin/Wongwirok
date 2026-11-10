@@ -20,6 +20,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private Animator animator;
 
     private CharacterController controller;
+    private PlayerAttack playerAttack;
     private float verticalVelocity;
     private float dodgeCooldownTimer;
     private float slowMultiplier = 1f;
@@ -68,6 +69,7 @@ public class PlayerMovement : MonoBehaviour
             cameraTransform = Camera.main.transform;
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+        playerAttack = GetComponent<PlayerAttack>();
     }
 
     private void Update()
@@ -98,6 +100,10 @@ public class PlayerMovement : MonoBehaviour
         }
 
         Vector3 move = CameraRelativeMove(input);
+
+        // 공격 중에는 이동 입력을 막는다 (전진은 공격 동작의 루트 모션이 담당).
+        if (playerAttack != null && playerAttack.IsAttacking)
+            move = Vector3.zero;
 
         if (animator != null)
             animator.SetFloat("Speed", move.magnitude);

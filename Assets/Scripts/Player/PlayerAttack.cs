@@ -1,23 +1,68 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// 3단 연속 베기.
+// - 공격 중에 다시 클릭하면 애니메이터가 현재 베기가 거의 끝날 때 다음 베기로 이어 준다.
+// - 피해는 클릭 순간이 아니라 칼이 가장 빠르게 지나가는 순간(hitTime)에 들어간다.
 public class PlayerAttack : MonoBehaviour
 {
-    [Header("Attack (현재: 1단계 버드나무 가지)")]
-    [SerializeField] private float attackDamage = 10f;
+    [System.Serializable]
+    private struct ComboHit
+    {
+        public string stateName;   // 애니메이터 상태 이름
+        public float damageMultiplier;  // 검 공격력에 곱하는 배율
+        public float hitTime;      // 동작 시작 후 피해가 들어가는 시간(초)
+        public float trailFrom;    // 칼날 궤적이 나오기 시작하는 시간(초)
+        public float trailTo;      // 칼날 궤적이 멈추는 시간(초)
+    }
+
+    [Header("Attack")]
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float attackRadius = 1f;
-    [SerializeField] private float attackCooldown = 0.5f;
+    [SerializeField] private float comboCooldown = 0.3f;
     [SerializeField] private LayerMask enemyLayers = ~0;
+
+    [Header("장착한 검 (공격력, 궤적 색)")]
+    [SerializeField] private SwordData equippedSword;
+    [SerializeField] private float fallbackAttackPower = 10f;
+
+    [Header("Combo (3단 연속 베기)")]
+    [SerializeField] private ComboHit[] comboHits =
+    {
+        new ComboHit { stateName = "Attack1", damageMultiplier = 1f, hitTime = 0.41f },
+        new ComboHit { stateName = "Attack2", damageMultiplier = 1f, hitTime = 0.22f },
+        new ComboHit { stateName = "Attack3", damageMultiplier = 2f, hitTime = 0.38f },
+    };
+
+    public SwordData EquippedSword => equippedSword;
+    private float AttackPower => equippedSword != null ? equippedSword.attackPower : fallbackAttackPower;
+
+    // 다른 검을 장착한다 (마을 상점 등에서 호출)
+    public void Equip(SwordData sword)
+    {
+        equippedSword = sword;
+        if (slashTrail != null && sword != null)
+            slashTrail.SetColor(sword.trailColor);
+    }
 
     [Header("Visual")]
     [SerializeField] private WeaponSwing weaponSwing;
+    [SerializeField] private SwordSlashTrail slashTrail;
 
     [Header("References")]
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private Animator animator;
 
+    private static readonly int AttackTrigger = Animator.StringToHash("Attack");
+
+    private int[] stateHashes;
+    private int currentStep = -1;      // 지금 재생 중인 베기 순번 (없으면 -1)
+    private bool hitDone;
+    private bool startRequested;       // 대기/이동 상태에서 첫 베기를 요청한 직후
+    private float startRequestTime;
     private float cooldownTimer;
+
+    public bool IsAttacking => currentStep >= 0 || startRequested;
 
     private void Awake()
     {
@@ -25,6 +70,14 @@ public class PlayerAttack : MonoBehaviour
             playerMovement = GetComponent<PlayerMovement>();
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+        if (slashTrail == null)
+            slashTrail = GetComponentInChildren<SwordSlashTrail>(true);
+
+        stateHashes = new int[comboHits.Length];
+        for (int i = 0; i < comboHits.Length; i++)
+            stateHashes[i] = Animator.StringToHash(comboHits[i].stateName);
+
+        Equip(equippedSword);
     }
 
     private void Update()
@@ -40,23 +93,106 @@ public class PlayerAttack : MonoBehaviour
             return;
         }
 
-        bool isDodging = playerMovement != null && playerMovement.IsDodging;
+        if (animator == null)
+            return;
 
-        if (!isDodging && cooldownTimer <= 0f && attackPressed)
+        UpdateCurrentStep();
+        UpdateTrail();
+
+        if (currentStep < 0)
         {
-            Attack();
-            cooldownTimer = attackCooldown;
+            if (startRequested && Time.time - startRequestTime > 0.3f)
+            {
+                // 애니메이터가 공격으로 넘어가지 못한 경우(회피 중 등) 요청을 취소한다.
+                startRequested = false;
+                animator.ResetTrigger(AttackTrigger);
+            }
+
+            bool isDodging = playerMovement != null && playerMovement.IsDodging;
+            if (attackPressed && !startRequested && !isDodging && cooldownTimer <= 0f)
+            {
+                animator.SetTrigger(AttackTrigger);
+                startRequested = true;
+                startRequestTime = Time.time;
+            }
+            return;
+        }
+
+        bool isLastHit = currentStep >= comboHits.Length - 1;
+        if (attackPressed && !isLastHit)
+            animator.SetTrigger(AttackTrigger);   // 다음 베기 예약 (애니메이터가 알맞은 때에 이어 줌)
+        else if (isLastHit)
+            animator.ResetTrigger(AttackTrigger);  // 마지막 타 중 입력은 무시 (끝나고 저절로 다시 시작되지 않게)
+
+        if (!hitDone && CurrentStateTime() >= comboHits[currentStep].hitTime)
+        {
+            hitDone = true;
+            DealDamage(AttackPower * comboHits[currentStep].damageMultiplier);
         }
     }
 
-    private void Attack()
+    private void UpdateCurrentStep()
     {
-        if (animator != null)
-            animator.SetTrigger("Attack");
+        int step = -1;
+        if (animator.IsInTransition(0))
+            step = StepOf(animator.GetNextAnimatorStateInfo(0).shortNameHash);
+        if (step < 0)
+            step = StepOf(animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
 
-        if (weaponSwing != null)
-            weaponSwing.PlaySwing();
+        if (step == currentStep)
+            return;
 
+        if (step >= 0)
+        {
+            startRequested = false;
+            hitDone = false;
+            if (weaponSwing != null)
+                weaponSwing.PlaySwing();
+        }
+        else if (currentStep >= 0)
+        {
+            // 연속 공격이 끝남
+            cooldownTimer = comboCooldown;
+            animator.ResetTrigger(AttackTrigger);
+        }
+
+        currentStep = step;
+    }
+
+    private void UpdateTrail()
+    {
+        if (slashTrail == null)
+            return;
+        if (currentStep < 0)
+        {
+            slashTrail.SetEmitting(false, false);
+            return;
+        }
+
+        float t = CurrentStateTime();
+        ComboHit hit = comboHits[currentStep];
+        bool on = t >= hit.trailFrom && t <= hit.trailTo;
+        slashTrail.SetEmitting(on, currentStep == comboHits.Length - 1);
+    }
+
+    private float CurrentStateTime()
+    {
+        AnimatorStateInfo info = animator.IsInTransition(0) && StepOf(animator.GetNextAnimatorStateInfo(0).shortNameHash) == currentStep
+            ? animator.GetNextAnimatorStateInfo(0)
+            : animator.GetCurrentAnimatorStateInfo(0);
+        return info.normalizedTime * info.length;
+    }
+
+    private int StepOf(int shortNameHash)
+    {
+        for (int i = 0; i < stateHashes.Length; i++)
+            if (stateHashes[i] == shortNameHash)
+                return i;
+        return -1;
+    }
+
+    private void DealDamage(float damage)
+    {
         Vector3 attackPoint = transform.position + transform.forward * attackRange;
         Collider[] hits = Physics.OverlapSphere(attackPoint, attackRadius, enemyLayers);
 
@@ -64,7 +200,7 @@ public class PlayerAttack : MonoBehaviour
         {
             EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
             if (enemyHealth != null)
-                enemyHealth.TakeDamage(attackDamage);
+                enemyHealth.TakeDamage(damage);
         }
     }
 

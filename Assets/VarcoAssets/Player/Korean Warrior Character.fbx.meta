@@ -829,17 +829,17 @@ ModelImporter:
     - name: DEF-thigh.L
       parentName: DEF-spine
       position: {x: -0.0006684775, y: 0.00039483176, z: 0.00010600005}
-      rotation: {x: 0.9161885, y: 0.002038002, z: 0.35908148, w: 0.1779185}
+      rotation: {x: 0.92649573, y: 0.0449791, z: 0.35464787, w: 0.11750511}
       scale: {x: 1.0000002, y: 1.0000001, z: 1.0000019}
     - name: DEF-shin.L
       parentName: DEF-thigh.L
       position: {x: -1.11758706e-10, y: 0.0025675267, z: -2.7939677e-11}
-      rotation: {x: 0.12966613, y: -0.00000006553455, z: 0.000000067055225, w: 0.9915577}
+      rotation: {x: -0.00000032782557, y: 0.000000007916243, z: -0.00000006332994, w: 1}
       scale: {x: 1.0000004, y: 1, z: 1.0000001}
     - name: DEF-foot.L
       parentName: DEF-shin.L
       position: {x: 5.2386893e-11, y: 0.00224428, z: 2.3283064e-12}
-      rotation: {x: -0.657157, y: -0.17931843, z: -0.15089475, w: 0.716394}
+      rotation: {x: -0.5854089, y: -0.27069318, z: -0.23071314, w: 0.72855544}
       scale: {x: 0.9999998, y: 1.0000001, z: 1.0000001}
     - name: DEF-toe.L
       parentName: DEF-foot.L
@@ -859,17 +859,17 @@ ModelImporter:
     - name: DEF-thigh.R
       parentName: DEF-spine
       position: {x: 0.0006684775, y: 0.00039483176, z: 0.00010600005}
-      rotation: {x: 0.9161885, y: -0.002038002, z: -0.35908148, w: 0.1779185}
+      rotation: {x: 0.92649573, y: -0.0449791, z: -0.35464787, w: 0.11750511}
       scale: {x: 1.0000002, y: 1.0000001, z: 1.0000019}
     - name: DEF-shin.R
       parentName: DEF-thigh.R
       position: {x: 1.11758706e-10, y: 0.0025675267, z: -2.7939677e-11}
-      rotation: {x: 0.12966613, y: 0.00000006553455, z: -0.000000067055225, w: 0.9915577}
+      rotation: {x: -0.00000032782557, y: -0.000000007916243, z: 0.00000006332994, w: 1}
       scale: {x: 1.0000004, y: 1, z: 1.0000001}
     - name: DEF-foot.R
       parentName: DEF-shin.R
       position: {x: -5.2386893e-11, y: 0.00224428, z: 2.3283064e-12}
-      rotation: {x: -0.657157, y: 0.17931843, z: 0.15089475, w: 0.716394}
+      rotation: {x: -0.5854089, y: 0.27069318, z: 0.23071314, w: 0.72855544}
       scale: {x: 0.9999998, y: 1.0000001, z: 1.0000001}
     - name: DEF-toe.R
       parentName: DEF-foot.R

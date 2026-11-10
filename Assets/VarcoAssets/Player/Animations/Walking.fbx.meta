@@ -818,17 +818,17 @@ ModelImporter:
     - name: mixamorig:LeftUpLeg
       parentName: mixamorig:Hips
       position: {x: -0.0158, y: -0.0387, z: 0.0208}
-      rotation: {x: -0.07978972, y: 0.10860488, z: 0.98293215, w: 0.12523201}
+      rotation: {x: -0.08509499, y: 0.049019784, z: 0.9902105, w: 0.099192925}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:LeftLeg
       parentName: mixamorig:LeftUpLeg
       position: {x: -0, y: 0.1548, z: 0}
-      rotation: {x: -0.3354631, y: -0.019941693, z: 0.010098527, w: 0.94178814}
+      rotation: {x: -0.000000059604638, y: -0.02116953, z: 0.000000008847564, w: 0.9997759}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:LeftFoot
       parentName: mixamorig:LeftLeg
       position: {x: -0, y: 0.0711, z: 0}
-      rotation: {x: 0.5420498, y: -0.42260447, z: -0.2999811, w: 0.66151255}
+      rotation: {x: 0.382217, y: -0.5690731, z: -0.08112314, w: 0.72352266}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:LeftToeBase
       parentName: mixamorig:LeftFoot
@@ -843,17 +843,17 @@ ModelImporter:
     - name: mixamorig:RightUpLeg
       parentName: mixamorig:Hips
       position: {x: 0.0158, y: -0.0387, z: 0.01}
-      rotation: {x: 0.0985621, y: 0.087583296, z: 0.9895313, w: 0.05867418}
+      rotation: {x: 0.09099306, y: 0.03074481, z: 0.9896859, w: 0.10628705}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:RightLeg
       parentName: mixamorig:RightUpLeg
       position: {x: -0, y: 0.1546, z: 0}
-      rotation: {x: -0.32897183, y: 0.14061917, z: -0.052203108, w: 0.9323511}
+      rotation: {x: -0.00000007543713, y: 0.14913547, z: 0.000000028871, w: 0.98881686}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:RightFoot
       parentName: mixamorig:RightLeg
       position: {x: -0, y: 0.1076, z: 0}
-      rotation: {x: -0.5513446, y: 0.68219805, z: 0.27560902, w: -0.39327425}
+      rotation: {x: -0.32922664, y: 0.7809607, z: 0.21042936, w: -0.48726758}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:RightToeBase
       parentName: mixamorig:RightFoot

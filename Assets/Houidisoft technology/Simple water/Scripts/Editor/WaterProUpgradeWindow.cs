@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 namespace Houidisoft.SimpleWater{
-[InitializeOnLoad]
+// [InitializeOnLoad]  // 원귀록: 컴파일할 때마다 뜨는 유료판 광고 창 끔 (도구 → Houidisoft 메뉴로는 열 수 있음)
 public static class WaterUpgradePopupLoader
 {
     static WaterUpgradePopupLoader()

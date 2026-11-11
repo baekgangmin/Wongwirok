@@ -21,6 +21,7 @@ public class PlayerMovement : MonoBehaviour
 
     private CharacterController controller;
     private PlayerAttack playerAttack;
+    private PlayerParry playerParry;
     private float verticalVelocity;
     private float dodgeCooldownTimer;
     private float slowMultiplier = 1f;
@@ -73,6 +74,7 @@ public class PlayerMovement : MonoBehaviour
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
         playerAttack = GetComponent<PlayerAttack>();
+        playerParry = GetComponent<PlayerParry>();
     }
 
     private void Update()
@@ -106,6 +108,9 @@ public class PlayerMovement : MonoBehaviour
 
         // 공격 중에는 이동 입력을 막는다 (전진은 공격 동작의 루트 모션이 담당).
         if (playerAttack != null && playerAttack.IsAttacking)
+            move = Vector3.zero;
+        // 패링 자세를 취하는 동안에도 멈춘다.
+        if (playerParry != null && playerParry.IsParrying)
             move = Vector3.zero;
 
         if (animator != null)

@@ -11,6 +11,8 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private float activeDuration = 0.2f;
     [SerializeField] private float recoveryDuration = 0.8f;
     [SerializeField] private float staggerDuration = 1.2f;
+    [Tooltip("공격이 끝난 뒤 다음 공격까지 쉬는 시간 (이 틈에 맞으면 움찔한다)")]
+    [SerializeField] private float attackCooldown = 0.8f;
 
     [Header("On-Hit Effect")]
     [SerializeField] private bool slowsPlayerInsteadOfDamage = false;
@@ -41,6 +43,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     private Color baseColor;
     private Coroutine attackRoutine;
     private bool isBusy;
+    private float cooldownTimer;
     private EnemyAnimationDriver animationDriver;
     private Animator animator;
     private ParticleSystem activeTelegraph;
@@ -70,7 +73,10 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
 
     private void Update()
     {
-        if (health.IsDead || isBusy || player == null)
+        if (cooldownTimer > 0f)
+            cooldownTimer -= Time.deltaTime;
+
+        if (health.IsDead || isBusy || player == null || cooldownTimer > 0f)
             return;
 
         if (animationDriver != null && animationDriver.IsReacting)
@@ -143,6 +149,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         yield return new WaitForSeconds(recoveryDuration);
 
         isBusy = false;
+        cooldownTimer = attackCooldown;
     }
 
     private void StartTelegraphEffect()
@@ -187,6 +194,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
 
         SetColor(baseColor);
         isBusy = false;
+        cooldownTimer = attackCooldown;
     }
 
     private void SetColor(Color color)

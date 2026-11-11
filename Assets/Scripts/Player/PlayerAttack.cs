@@ -66,6 +66,8 @@ public class PlayerAttack : MonoBehaviour
 
     private static readonly int AttackTrigger = Animator.StringToHash("Attack");
 
+    private PlayerParry playerParry;
+
     private int[] stateHashes;
     private int currentStep = -1;      // 지금 재생 중인 베기 순번 (없으면 -1)
     private bool hitDone;
@@ -83,6 +85,7 @@ public class PlayerAttack : MonoBehaviour
             animator = GetComponentInChildren<Animator>();
         if (slashTrail == null)
             slashTrail = GetComponentInChildren<SwordSlashTrail>(true);
+        playerParry = GetComponent<PlayerParry>();
 
         stateHashes = new int[comboHits.Length];
         for (int i = 0; i < comboHits.Length; i++)
@@ -120,7 +123,8 @@ public class PlayerAttack : MonoBehaviour
             }
 
             bool isDodging = playerMovement != null && playerMovement.IsDodging;
-            if (attackPressed && !startRequested && !isDodging && cooldownTimer <= 0f)
+            bool isParrying = playerParry != null && playerParry.IsParrying;
+            if (attackPressed && !startRequested && !isDodging && !isParrying && cooldownTimer <= 0f)
             {
                 animator.SetTrigger(AttackTrigger);
                 startRequested = true;

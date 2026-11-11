@@ -109,9 +109,10 @@ public class EnemyAnimationDriver : MonoBehaviour
 
     private void HandleDamaged(float amount)
     {
-        if (health.IsDead)
+        // 마지막 일격이면 움찔하지 않는다 (같은 프레임의 죽음 동작이 움찔에 묻히는 문제 방지)
+        if (health.IsDead || health.CurrentHealth <= 0f)
             return;
-        // 공격하는 중에는 움찔하지 않고 공격을 끝까지 한다 (맞은 번쩍임·불꽃은 그대로)
+        // 공격 중에는 칼에 맞아도 끊기지 않는다 (공격을 끊는 건 패링뿐). 공격 사이 쉬는 틈에 맞으면 움찔한다.
         if (enemyAttack != null && enemyAttack.IsBusy)
             return;
         PlayHit(true);
@@ -124,6 +125,8 @@ public class EnemyAnimationDriver : MonoBehaviour
         if (animator != null)
         {
             animator.SetFloat(SpeedId, 0f);
+            animator.ResetTrigger(HitId);
+            animator.ResetTrigger(AttackId);
             animator.SetTrigger(DeadId);
         }
     }

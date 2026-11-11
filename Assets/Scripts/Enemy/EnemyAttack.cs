@@ -41,6 +41,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     private PlayerMovement playerMovement;
     private PlayerHealth playerHealth;
     private Color baseColor;
+    private RendererTint tint;
     private Coroutine attackRoutine;
     private bool isBusy;
     private float cooldownTimer;
@@ -56,7 +57,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         if (targetRenderer == null)
             targetRenderer = GetComponentInChildren<Renderer>();
         if (targetRenderer != null)
-            baseColor = targetRenderer.material.color;
+            { tint = new RendererTint(targetRenderer); baseColor = tint.BaseColor; }
 
         if (player == null)
         {
@@ -200,6 +201,6 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     private void SetColor(Color color)
     {
         if (targetRenderer != null)
-            targetRenderer.material.color = color;
+            tint?.Set(color);
     }
 }

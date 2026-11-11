@@ -54,7 +54,7 @@ public class PlayerParry : MonoBehaviour
 
         bool pressed = Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame;
         bool busy = (playerAttack != null && playerAttack.IsAttacking)
-                    || (playerMovement != null && (playerMovement.IsDodging || playerMovement.IsRestrained));
+                    || (playerMovement != null && (playerMovement.IsDodging || playerMovement.IsRestrained || playerMovement.IsTrapped));
 
         if (pressed && cooldownTimer <= 0f && !busy)
         {
@@ -78,13 +78,23 @@ public class PlayerParry : MonoBehaviour
             if (enemyAttack != null && enemyAttack.AttemptParry())
             {
                 parryTimer = 0f;
-                PlaySuccess(hit);
+                PlaySuccess(hit.bounds.center);
                 break;
             }
         }
     }
 
-    private void PlaySuccess(Collider enemy)
+    // 보스 머리카락처럼 멀리서 오는 공격용: 지금 패링 판정 중이면 성공 처리하고 true.
+    public bool TryParryExternal(Vector3 attackerCenter)
+    {
+        if (parryTimer <= 0f)
+            return false;
+        parryTimer = 0f;
+        PlaySuccess(attackerCenter);
+        return true;
+    }
+
+    private void PlaySuccess(Vector3 enemyCenter)
     {
         // 불꽃: 칼날 가운데 (없으면 몸 앞 가슴 높이)
         Vector3 point = transform.position + transform.forward * 0.7f + Vector3.up * 1.2f;
@@ -93,7 +103,7 @@ public class PlayerParry : MonoBehaviour
 
         if (successEffectPrefab != null)
         {
-            Vector3 toEnemy = enemy.bounds.center - point;
+            Vector3 toEnemy = enemyCenter - point;
             Quaternion rot = toEnemy.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(-toEnemy.normalized) : Quaternion.LookRotation(-transform.forward);
             ParticleSystem fx = Instantiate(successEffectPrefab, point, rot);
             fx.transform.localScale *= successEffectScale;

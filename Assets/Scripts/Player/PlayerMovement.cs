@@ -32,6 +32,82 @@ public class PlayerMovement : MonoBehaviour
     public bool IsDodging { get; private set; }
     public bool IsInvulnerable { get; private set; }
     public bool IsRestrained { get; private set; }
+    // 물기둥에 갇혀 떠올랐다가 떨어지는 동안 (입력 잠김)
+    public bool IsTrapped { get; private set; }
+    public bool IsTrapFalling { get; private set; }
+    public event System.Action OnTrapLanded;
+
+    private float trapHoldRemaining;
+    private static readonly int TrappedId = Animator.StringToHash("Trapped");
+
+    // 물기둥에 갇힘: 기둥 가운데로 끌려가며 떠오름 → 위에서 들썩임 → 떨어져 착지.
+    public void ApplyWaterTrap(Vector3 pillarCenter, float riseHeight, float riseTime, float holdTime, float bobAmplitude)
+    {
+        if (IsTrapped)
+            return;
+        BreakRestrain();
+        StartCoroutine(WaterTrapRoutine(pillarCenter, riseHeight, riseTime, holdTime, bobAmplitude));
+    }
+
+    // 갇힌 동안 공격 버튼을 누를 때마다 빨리 빠져나온다
+    public void StruggleTrap(float seconds)
+    {
+        if (IsTrapped)
+            trapHoldRemaining -= seconds;
+    }
+
+    private IEnumerator WaterTrapRoutine(Vector3 center, float riseHeight, float riseTime, float holdTime, float bobAmplitude)
+    {
+        IsTrapped = true;
+        verticalVelocity = 0f;
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f);
+            animator.SetBool(TrappedId, true);
+        }
+
+        Vector3 start = transform.position;
+        Vector3 top = new Vector3(center.x, start.y + riseHeight, center.z);
+
+        // 떠오르기 (가운데로 끌려감)
+        for (float t = 0f; t < riseTime; t += Time.deltaTime)
+        {
+            float k = Mathf.SmoothStep(0f, 1f, t / riseTime);
+            controller.Move(Vector3.Lerp(start, top, k) - transform.position);
+            yield return null;
+        }
+
+        // 위에서 살짝 들썩임
+        trapHoldRemaining = holdTime;
+        float bobTime = 0f;
+        while (trapHoldRemaining > 0f)
+        {
+            trapHoldRemaining -= Time.deltaTime;
+            bobTime += Time.deltaTime;
+            Vector3 target = top + Vector3.up * (Mathf.Sin(bobTime * Mathf.PI * 2f * 1.2f) * bobAmplitude);
+            controller.Move(target - transform.position);
+            yield return null;
+        }
+
+        // 떨어지기
+        IsTrapFalling = true;
+        if (animator != null)
+            animator.SetBool(TrappedId, false);
+        float fallVelocity = 0f;
+        for (float t = 0f; t < 3f; t += Time.deltaTime)
+        {
+            fallVelocity += gravity * 1.5f * Time.deltaTime;
+            CollisionFlags flags = controller.Move(Vector3.up * fallVelocity * Time.deltaTime);
+            if ((flags & CollisionFlags.Below) != 0)
+                break;
+            yield return null;
+        }
+
+        verticalVelocity = -2f;
+        IsTrapFalling = false;
+        IsTrapped = false;
+        OnTrapLanded?.Invoke();
+    }
 
     public event System.Action OnSlowed;
 
@@ -88,7 +164,7 @@ public class PlayerMovement : MonoBehaviour
                 slowMultiplier = 1f;
         }
 
-        if (IsRestrained || IsDodging)
+        if (IsRestrained || IsDodging || IsTrapped)
             return;
 
         Vector2 input = ReadMoveInput();

@@ -98,14 +98,6 @@ ModelImporter:
         length: 0
         modified: 0
     - boneName: LeftUpLeg
-      humanName: LeftUpperLeg
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: RightUpLeg
       humanName: RightUpperLeg
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -113,15 +105,15 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: LeftLeg
-      humanName: LeftLowerLeg
+    - boneName: RightUpLeg
+      humanName: LeftUpperLeg
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: RightLeg
+    - boneName: LeftLeg
       humanName: RightLowerLeg
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -129,8 +121,16 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
+    - boneName: RightLeg
+      humanName: LeftLowerLeg
+      limit:
+        min: {x: 0, y: 0, z: 0}
+        max: {x: 0, y: 0, z: 0}
+        value: {x: 0, y: 0, z: 0}
+        length: 0
+        modified: 0
     - boneName: LeftFoot
-      humanName: LeftFoot
+      humanName: RightFoot
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -138,7 +138,7 @@ ModelImporter:
         length: 0
         modified: 0
     - boneName: RightFoot
-      humanName: RightFoot
+      humanName: LeftFoot
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -178,14 +178,6 @@ ModelImporter:
         length: 0
         modified: 0
     - boneName: LeftShoulder
-      humanName: LeftShoulder
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: RightShoulder
       humanName: RightShoulder
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -193,15 +185,15 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: LeftArm
-      humanName: LeftUpperArm
+    - boneName: RightShoulder
+      humanName: LeftShoulder
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: RightArm
+    - boneName: LeftArm
       humanName: RightUpperArm
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -209,15 +201,15 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: LeftForeArm
-      humanName: LeftLowerArm
+    - boneName: RightArm
+      humanName: LeftUpperArm
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: RightForeArm
+    - boneName: LeftForeArm
       humanName: RightLowerArm
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -225,15 +217,15 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: LeftHand
-      humanName: LeftHand
+    - boneName: RightForeArm
+      humanName: LeftLowerArm
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: RightHand
+    - boneName: LeftHand
       humanName: RightHand
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -241,16 +233,8 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: LeftToeBase
-      humanName: LeftToes
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: RightToeBase
-      humanName: RightToes
+    - boneName: RightHand
+      humanName: LeftHand
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
@@ -279,7 +263,7 @@ ModelImporter:
     - name: Hips
       parentName: BossArmature
       position: {x: -0, y: 0, z: 0.0050042523}
-      rotation: {x: -0, y: -0.7071067, z: -0.7071068, w: 0}
+      rotation: {x: 0.7071068, y: 0, z: -0, w: 0.7071067}
       scale: {x: 1, y: 1, z: 1}
     - name: Spine
       parentName: Hips
@@ -319,7 +303,7 @@ ModelImporter:
     - name: LeftForeArm
       parentName: LeftArm
       position: {x: -5.018555e-17, y: 0.0015033297, z: -1.110223e-18}
-      rotation: {x: -0.03893411, y: -0.056581188, z: 0.03545748, w: 0.99700826}
+      rotation: {x: -0.053347673, y: -0.057022598, z: 0.03623261, w: 0.99628794}
       scale: {x: 1, y: 0.9999999, z: 1.0000001}
     - name: LeftHand
       parentName: LeftForeArm
@@ -339,7 +323,7 @@ ModelImporter:
     - name: RightForeArm
       parentName: RightArm
       position: {x: 5.018555e-17, y: 0.0015033297, z: -1.110223e-18}
-      rotation: {x: -0.03893411, y: 0.056581188, z: -0.03545748, w: 0.99700826}
+      rotation: {x: -0.053347673, y: 0.057022598, z: -0.03623261, w: 0.99628794}
       scale: {x: 1, y: 0.9999999, z: 1.0000001}
     - name: RightHand
       parentName: RightForeArm

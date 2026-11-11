@@ -20,6 +20,8 @@ public class PlayerAttack : MonoBehaviour
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float attackRadius = 1f;
     [SerializeField] private float comboCooldown = 0.3f;
+    [Tooltip("물기둥에 갇혔을 때 공격 버튼 한 번에 줄어드는 시간(초)")]
+    [SerializeField] private float trapStruggleSeconds = 0.25f;
     [SerializeField] private LayerMask enemyLayers = ~0;
 
     [Header("장착한 검 (공격력, 궤적 색)")]
@@ -104,6 +106,19 @@ public class PlayerAttack : MonoBehaviour
         {
             if (attackPressed)
                 playerMovement.BreakRestrain();
+            return;
+        }
+
+        // 물기둥에 갇힌 동안: 공격 버튼을 누를 때마다 빨리 빠져나옴
+        if (playerMovement != null && playerMovement.IsTrapped)
+        {
+            if (attackPressed)
+                playerMovement.StruggleTrap(trapStruggleSeconds);
+            if (animator != null)
+                UpdateCurrentStep();   // 공격 중에 갇혔으면 공격 상태를 정리
+            startRequested = false;
+            if (slashTrail != null)
+                slashTrail.SetEmitting(false, false);
             return;
         }
 

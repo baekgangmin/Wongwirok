@@ -7,9 +7,9 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement")]
     [Tooltip("달리기 속도 (Shift를 누르는 동안)")]
-    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float moveSpeed = 5.8f;
     [Tooltip("걷기 속도 (기본 이동). Starter Assets 걷기 동작 보폭에 맞춘 값")]
-    [SerializeField] private float walkSpeed = 2.3f;
+    [SerializeField] private float walkSpeed = 2.7f;
     [SerializeField] private float rotationSpeed = 12f;
     [SerializeField] private float gravity = -20f;
 

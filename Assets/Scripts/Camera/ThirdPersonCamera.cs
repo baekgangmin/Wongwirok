@@ -36,6 +36,13 @@ public class ThirdPersonCamera : MonoBehaviour
         Instance = this;
     }
 
+    // 세계 이동 등으로 플레이어를 옮긴 뒤 카메라를 등 뒤로 맞춘다
+    public void SetYaw(float newYaw)
+    {
+        yaw = newYaw;
+        pitch = 15f;
+    }
+
     private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;

@@ -20,6 +20,49 @@ public static class HumanWorldBuilder
     static Transform root;
     static System.Random rng;
 
+    [MenuItem("Tools/원귀록/진행 기록 초기화 (보스 깬 기록 지우기)")]
+    public static void ResetProgress()
+    {
+        GameProgress.ResetAll();
+        Debug.Log("[원귀록] 진행 기록을 지웠습니다. 다시 연못에 들어갈 수 있습니다.");
+    }
+
+    public static Material RopeMaterial()
+    {
+        string path = "Assets/VarcoAssets/HumanWorld/Rope.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null)
+        {
+            m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            m.SetColor("_BaseColor", new Color(0.42f, 0.34f, 0.22f));
+            m.SetFloat("_Smoothness", 0.1f);
+            AssetDatabase.CreateAsset(m, path);
+        }
+        return m;
+    }
+
+    // 인간 세계 연못만 바닥을 깊게 판다 (물가선은 그대로라 보스맵과 모양은 같음)
+    static void DeepenLake(Terrain t, float waterY, float extraDepth)
+    {
+        var td = t.terrainData;
+        int res = td.heightmapResolution;
+        var h = td.GetHeights(0, 0, res, res);
+        float baseY = t.transform.position.y, sy = td.size.y;
+        float minY = float.MaxValue;
+        for (int y = 0; y < res; y++) for (int x = 0; x < res; x++) minY = Mathf.Min(minY, baseY + h[y, x] * sy);
+        if (minY < waterY - 1f) return; // 이미 팠음
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                float wy = baseY + h[y, x] * sy;
+                float sub = waterY - wy;
+                if (sub <= 0) continue;
+                float k = Mathf.SmoothStep(0, 1, Mathf.InverseLerp(0f, 0.16f, sub));
+                h[y, x] = Mathf.Max(0f, (wy - k * extraDepth - baseY) / sy);
+            }
+        td.SetHeights(0, 0, h);
+    }
+
     [MenuItem("Tools/원귀록/인간 세계 다시 배치")]
     public static void Build()
     {
@@ -56,6 +99,7 @@ public static class HumanWorldBuilder
         var grass = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Fantasy Skybox FREE/Scenes/Textures (Terrain)/TerrainGrass.terrainlayer");
         var dirt = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Fantasy Skybox FREE/Scenes/Textures (Terrain)/TerrainDirt.terrainlayer");
         var lakebed = AssetDatabase.LoadAssetAtPath<TerrainLayer>(GenDir + "LakebedLayer.terrainlayer");
+        DeepenLake(lake, -1.32f, 2.4f);
         RepaintLakeTerrain(lake, grass, dirt, lakebed);
 
         var village = CreateTerrain("HW_Terrain_Village", new Vector3(-160, BaseY, -275), new Vector3(320, TerrainHeight, 240), 257, lake, grass, dirt, VillageCore);
@@ -385,16 +429,23 @@ public static class HumanWorldBuilder
         var pier = Place("Pier", "Pier", new Vector3(6f, 0, shoreZ + 2f), 90f, 8f, lakeRoot, true, 0f);
         if (pier) pier.transform.position = new Vector3(6f, -2.85f, shoreZ + 2.5f); // 갑판이 물가 땅보다 살짝 높게 (올라설 수 있게)
 
-        // 선착장 끝: 귀의 세계로 들어가는 자리 (보스맵의 같은 좌표로 도착)
-        if (pier)
+        // 선착장 옆 버드나무: 밧줄을 묶고 몸에 감은 뒤 연못 깊이 들어가면 귀의 세계로
+        Vector3 treePos = new Vector3(-3f, 0, shoreZ - 5f);
+        var ropeTree = Place("Assets/VarcoAssets/Tree/Green Weeping Willow.glb", "RopeTree_Willow", treePos, 200f, 9f, lakeRoot, false, 0.02f);
+        if (ropeTree)
         {
-            var b = new Bounds(pier.transform.position, Vector3.zero);
-            foreach (var r in pier.GetComponentsInChildren<Renderer>()) b.Encapsulate(r.bounds);
-            var portal = new GameObject("HW_LakePortal");
-            portal.transform.SetParent(lakeRoot);
-            portal.transform.position = new Vector3(b.center.x, b.max.y, b.max.z - 1.2f);
-            portal.AddComponent<LakePortal>();
-            Debug.Log("[HumanWorldBuilder] 연못 입구 " + portal.transform.position);
+            TreeCollider(ropeTree, 1.0f, 5f);
+            var tie = new GameObject("TiePoint").transform;
+            tie.SetParent(ropeTree.transform, false);
+            // 줄기 쪽 연못을 향한 면, 허리 높이
+            Vector3 toLake = (new Vector3(6f, 0, shoreZ + 3f) - treePos); toLake.y = 0; toLake.Normalize();
+            tie.position = ropeTree.transform.position + Vector3.up * 1.1f + toLake * 0.35f;
+            var rt = ropeTree.AddComponent<RopeTieTree>();
+            var so = new SerializedObject(rt);
+            so.FindProperty("tiePoint").objectReferenceValue = tie;
+            so.FindProperty("ropeMaterial").objectReferenceValue = RopeMaterial();
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Debug.Log("[HumanWorldBuilder] 밧줄 나무 " + ropeTree.transform.position + " 묶는 자리 " + tie.position);
         }
         Debug.Log("[HumanWorldBuilder] 남쪽 물가 z=" + shoreZ);
     }

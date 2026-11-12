@@ -28,7 +28,10 @@ public class WorldTransition : MonoBehaviour
     private static readonly int TrappedId = Animator.StringToHash("Trapped");
     private static readonly int SpeedId = Animator.StringToHash("Speed");
 
-    public static void Begin(string targetScene, Vector3 arrivalPoint, float arrivalYaw, Color waterTint, Color worldTint)
+    private bool riseOnArrival = true;
+
+    // riseOnArrival: true = 도착한 곳 물속에서 떠오름 / false = 도착한 곳 땅 위에 바로 서 있음
+    public static void Begin(string targetScene, Vector3 arrivalPoint, float arrivalYaw, Color waterTint, Color worldTint, bool riseOnArrival = true)
     {
         if (IsRunning)
             return;
@@ -40,6 +43,7 @@ public class WorldTransition : MonoBehaviour
         t.arrivalYaw = arrivalYaw;
         t.waterTint = waterTint;
         t.worldTint = worldTint;
+        t.riseOnArrival = riseOnArrival;
         t.BuildOverlay();
         t.StartCoroutine(t.Run());
     }
@@ -106,7 +110,7 @@ public class WorldTransition : MonoBehaviour
         player = FindPlayer();
         float groundY = GroundHeight(arrivalPoint);
         Vector3 standPos = new Vector3(arrivalPoint.x, groundY + 1.05f, arrivalPoint.z);
-        Vector3 underPos = standPos + Vector3.down * SinkDepth;
+        Vector3 underPos = riseOnArrival ? standPos + Vector3.down * SinkDepth : standPos;
         if (player != null)
         {
             SetPlayerControl(player, false);
@@ -142,7 +146,7 @@ public class WorldTransition : MonoBehaviour
 
     private static PlayerMovement FindPlayer() => FindAnyObjectByType<PlayerMovement>();
 
-    private static void SetPlayerControl(PlayerMovement player, bool on)
+    public static void SetPlayerControl(PlayerMovement player, bool on)
     {
         if (player == null)
             return;
@@ -161,7 +165,7 @@ public class WorldTransition : MonoBehaviour
         }
     }
 
-    private static float GroundHeight(Vector3 p)
+    public static float GroundHeight(Vector3 p)
     {
         // 지형만 보고 바닥 높이를 찾는다
         float best = float.NegativeInfinity;

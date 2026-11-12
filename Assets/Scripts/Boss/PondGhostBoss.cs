@@ -44,6 +44,10 @@ public class PondGhostBoss : MonoBehaviour
     [Tooltip("판정 반폭 (예고선 폭의 절반)")]
     [SerializeField] private float hairHitHalfWidth = 0.6f;
     [SerializeField] private float hairArcHeight = 2f;
+    [Tooltip("줄마다 번갈아 플레이어가 움직일 위치를 예측해서 노림 (한 방향으로 계속 걸으면 맞음)")]
+    [SerializeField] private bool hairLeadAim = true;
+    [Tooltip("예측 조준 최대 거리(m)")]
+    [SerializeField] private float hairMaxLead = 4f;
     [Tooltip("머리카락 뿌리: 머리 뼈에서 뒤로 떨어진 거리(뒷머리) / 뒤로 솟구치는 높이 / 줄마다 좌우로 벌어지는 정도")]
     [SerializeField] private float hairBackOffset = 0.7f;
     [SerializeField] private float hairBackRise = 3f;
@@ -94,6 +98,7 @@ public class PondGhostBoss : MonoBehaviour
     private PlayerMovement playerMovement;
     private PlayerHealth playerHealth;
     private PlayerParry playerParry;
+    private CharacterController playerController;
     private Color baseColor;
     private RendererTint tint;
     private bool isBusy;
@@ -132,6 +137,7 @@ public class PondGhostBoss : MonoBehaviour
             playerMovement = player.GetComponent<PlayerMovement>();
             playerHealth = player.GetComponent<PlayerHealth>();
             playerParry = player.GetComponent<PlayerParry>();
+            playerController = player.GetComponent<CharacterController>();
         }
 
         health.OnDamaged += HandleDamaged;
@@ -147,6 +153,8 @@ public class PondGhostBoss : MonoBehaviour
     // 애니메이터에 해당 신호가 있을 때만 보낸다 (동작이 아직 없는 동안 경고 방지)
     private void TryTrigger(string triggerName)
     {
+        if (triggerName != "Dead" && !CanAct)
+            return;
         if (animator != null && triggerNames.Contains(triggerName))
             animator.SetTrigger(triggerName);
     }
@@ -154,6 +162,9 @@ public class PondGhostBoss : MonoBehaviour
     private void HandleDamaged(float amount)
     {
         if (phase2Triggered || health.MaxHealth <= 0f)
+            return;
+        // 마지막 일격이면 2단계로 넘어가지 않는다 (같은 순간의 죽는 동작이 포효에 묻히는 문제 방지)
+        if (health.IsDead || health.CurrentHealth <= 0f)
             return;
 
         if (health.CurrentHealth <= health.MaxHealth * phase2HealthRatio)
@@ -170,8 +181,15 @@ public class PondGhostBoss : MonoBehaviour
             if (go != null)
                 Destroy(go);
         spawnedLines.Clear();
+        // 남아 있던 다른 신호를 지우고 죽음 신호만 보낸다
+        if (animator != null)
+            foreach (string t in triggerNames)
+                animator.ResetTrigger(t);
         TryTrigger("Dead");
     }
+
+    // 죽은 뒤에는 죽음 외의 동작 신호를 보내지 않는다
+    private bool CanAct => health == null || !health.IsDead;
 
     // 2단계 진입: 포효 → 포효 정점에 화면이 크게 흔들리고 보스 둘레로 물기둥이 한꺼번에 솟음 → 이후 몸이 붉게 물듦
     private IEnumerator EnterPhase2()
@@ -303,7 +321,16 @@ public class PondGhostBoss : MonoBehaviour
 
         float groundY = player.position.y + 0.05f;
         Vector3 bossFlat = new Vector3(transform.position.x, groundY, transform.position.z);
-        Vector3 dir = player.position - transform.position;
+        // 줄마다 번갈아: 지금 위치 / 이대로 움직이면 도착할 위치(예측) 를 노린다
+        Vector3 aim = player.position;
+        if (hairLeadAim && strandIndex % 2 == 1 && playerController != null)
+        {
+            Vector3 vel = playerController.velocity;
+            vel.y = 0f;
+            Vector3 lead = vel * (hairTelegraphDuration + hairExtendTime);
+            aim += Vector3.ClampMagnitude(lead, hairMaxLead);
+        }
+        Vector3 dir = aim - transform.position;
         dir.y = 0f;
         float dist = dir.magnitude;
         dir = dist > 0.01f ? dir / dist : transform.forward;
@@ -399,23 +426,28 @@ public class PondGhostBoss : MonoBehaviour
         }
 
         // 3) 판정 유지 (패링 기회) → 끝에 피해
+        // 머리카락이 꽂혀 있는 동안 한 번이라도 선 위에 있으면(무적이 아닐 때) 맞음
         bool parried = false;
+        bool touched = false;
         for (float t = 0f; t < hairActiveDuration; t += Time.deltaTime)
         {
             draw(1f, tipPos);
-            if (parryable && !parried && PlayerInHairZone(lineStart, lineEnd) && playerParry != null
+            bool inZone = PlayerInHairZone(lineStart, lineEnd);
+            if (parryable && !parried && inZone && playerParry != null
                 && playerParry.TryParryExternal(transform.position + Vector3.up * 2f))
             {
                 parried = true;
                 hairParried = true;
             }
+            if (inZone && !(playerMovement != null && playerMovement.IsInvulnerable))
+                touched = true;
             yield return null;
         }
         if (tele != null)
             Destroy(tele.gameObject);
 
         bool grabbed = false;
-        if (!parried && PlayerInHairZone(lineStart, lineEnd) && !(playerMovement != null && playerMovement.IsInvulnerable))
+        if (!parried && touched)
         {
             if (grabs && playerMovement != null)
             {

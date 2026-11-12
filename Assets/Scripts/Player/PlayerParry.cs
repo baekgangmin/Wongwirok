@@ -36,6 +36,8 @@ public class PlayerParry : MonoBehaviour
     private Coroutine stopRoutine;
 
     public bool IsParrying => poseTimer > 0f;
+    // 마지막으로 패링에 성공한 시각 (패링 반격 판단용)
+    public float LastParrySuccessTime { get; private set; } = -99f;
 
     private void Awake()
     {
@@ -94,8 +96,15 @@ public class PlayerParry : MonoBehaviour
         return true;
     }
 
+    // 패링 반격이 나가면 패링 자세를 바로 풀어 준다
+    public void EndPose()
+    {
+        poseTimer = 0f;
+    }
+
     private void PlaySuccess(Vector3 enemyCenter)
     {
+        LastParrySuccessTime = Time.time;
         // 불꽃: 칼날 가운데 (없으면 몸 앞 가슴 높이)
         Vector3 point = transform.position + transform.forward * 0.7f + Vector3.up * 1.2f;
         if (slashTrail != null && slashTrail.TryGetBladeMidPoint(out Vector3 blade))

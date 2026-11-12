@@ -6,7 +6,10 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement")]
+    [Tooltip("달리기 속도 (Shift를 누르는 동안)")]
     [SerializeField] private float moveSpeed = 5f;
+    [Tooltip("걷기 속도 (기본 이동). Starter Assets 걷기 동작 보폭에 맞춘 값")]
+    [SerializeField] private float walkSpeed = 2.3f;
     [SerializeField] private float rotationSpeed = 12f;
     [SerializeField] private float gravity = -20f;
 
@@ -30,6 +33,9 @@ public class PlayerMovement : MonoBehaviour
     private Coroutine restrainRoutine;
 
     public bool IsDodging { get; private set; }
+    public bool IsRunning { get; private set; }
+    // 마지막으로 회피가 끝난 시각 (회피 공격 판단용)
+    public float LastDodgeEndTime { get; private set; } = -99f;
     public bool IsInvulnerable { get; private set; }
     public bool IsRestrained { get; private set; }
     // 물기둥에 갇혀 떠올랐다가 떨어지는 동안 (입력 잠김)
@@ -169,7 +175,8 @@ public class PlayerMovement : MonoBehaviour
 
         Vector2 input = ReadMoveInput();
 
-        if (dodgeCooldownTimer <= 0f && Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame)
+        // 회피: 왼쪽 Ctrl
+        if (dodgeCooldownTimer <= 0f && Keyboard.current != null && Keyboard.current.leftCtrlKey.wasPressedThisFrame)
         {
             Vector3 dodgeDirection = CameraRelativeMove(input);
             if (dodgeDirection.sqrMagnitude < 0.0001f)
@@ -189,8 +196,12 @@ public class PlayerMovement : MonoBehaviour
         if (playerParry != null && playerParry.IsParrying)
             move = Vector3.zero;
 
+        // 달리기: 왼쪽 Shift를 누르는 동안. 애니메이터 Speed는 걷기 0.5 / 뛰기 1.0
+        bool running = Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed;
+        IsRunning = running && move.sqrMagnitude > 0.0001f;
+        float speed = running ? moveSpeed : walkSpeed;
         if (animator != null)
-            animator.SetFloat("Speed", move.magnitude);
+            animator.SetFloat("Speed", move.magnitude * (running ? 1f : 0.5f), 0.1f, Time.deltaTime);
 
         if (move.sqrMagnitude > 0.0001f)
         {
@@ -202,7 +213,7 @@ public class PlayerMovement : MonoBehaviour
             verticalVelocity = -2f;
         verticalVelocity += gravity * Time.deltaTime;
 
-        controller.Move((move * moveSpeed * slowMultiplier + Vector3.up * verticalVelocity) * Time.deltaTime);
+        controller.Move((move * speed * slowMultiplier + Vector3.up * verticalVelocity) * Time.deltaTime);
     }
 
     private IEnumerator DodgeRoutine(Vector3 direction)
@@ -223,6 +234,7 @@ public class PlayerMovement : MonoBehaviour
 
         IsInvulnerable = false;
         IsDodging = false;
+        LastDodgeEndTime = Time.time;
     }
 
     private Vector2 ReadMoveInput()

@@ -11,6 +11,11 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private float activeDuration = 0.2f;
     [SerializeField] private float recoveryDuration = 0.8f;
     [SerializeField] private float staggerDuration = 1.2f;
+    [Header("할퀴는 범위 (피해가 들어가는 순간 이 안에 있어야 맞음)")]
+    [Tooltip("할퀴는 거리 (공격을 시작하는 사거리보다 조금 길게)")]
+    [SerializeField] private float hitRange = 2.3f;
+    [Tooltip("앞쪽 부채꼴 각도 (전체, 도)")]
+    [SerializeField] private float hitAngle = 100f;
     [Tooltip("공격이 끝난 뒤 다음 공격까지 쉬는 시간 (이 틈에 맞으면 움찔한다)")]
     [SerializeField] private float attackCooldown = 0.8f;
 
@@ -133,7 +138,11 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         }
 
         bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
-        if (playerInvulnerable)
+        if (!PlayerInHitArc())
+        {
+            // 예고를 보고 물러나거나 옆으로 비켜서 할퀴는 범위를 벗어남
+        }
+        else if (playerInvulnerable)
         {
             Debug.Log($"{name}: 공격이 회피로 빗나감");
         }
@@ -151,6 +160,37 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
 
         isBusy = false;
         cooldownTimer = attackCooldown;
+    }
+
+    // 할퀴는 범위: 공격을 시작할 때 바라본 방향 기준 앞쪽 부채꼴
+    private bool PlayerInHitArc()
+    {
+        if (player == null)
+            return false;
+        Vector3 to = player.position - transform.position;
+        to.y = 0f;
+        if (to.magnitude > hitRange)
+            return false;
+        if (to.sqrMagnitude < 0.01f)
+            return true;
+        return Vector3.Angle(transform.forward, to) <= hitAngle * 0.5f;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        // 씬 화면에서 잡몹을 선택하면 할퀴는 범위가 보임 (게임 화면에는 안 나옴)
+        Gizmos.color = new Color(1f, 0.3f, 0.2f, 0.9f);
+        Vector3 c = transform.position + Vector3.up * 0.05f;
+        int seg = 20;
+        Vector3 prev = c;
+        for (int i = 0; i <= seg; i++)
+        {
+            float a = -hitAngle * 0.5f + hitAngle * i / seg;
+            Vector3 p = c + Quaternion.Euler(0f, a, 0f) * transform.forward * hitRange;
+            Gizmos.DrawLine(prev, p);
+            prev = p;
+        }
+        Gizmos.DrawLine(prev, c);
     }
 
     private void StartTelegraphEffect()

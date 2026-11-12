@@ -44,7 +44,7 @@ public class PondGhostBoss : MonoBehaviour
     [Tooltip("판정 반폭 (예고선 폭의 절반)")]
     [SerializeField] private float hairHitHalfWidth = 0.6f;
     [SerializeField] private float hairArcHeight = 2f;
-    [Tooltip("머리카락 뿌리: 가슴에서 등 뒤로 떨어진 거리 / 등 뒤로 솟구치는 높이 / 줄마다 좌우로 벌어지는 정도")]
+    [Tooltip("머리카락 뿌리: 머리 뼈에서 뒤로 떨어진 거리(뒷머리) / 뒤로 솟구치는 높이 / 줄마다 좌우로 벌어지는 정도")]
     [SerializeField] private float hairBackOffset = 0.7f;
     [SerializeField] private float hairBackRise = 3f;
     [SerializeField] private float hairBackSpread = 0.6f;
@@ -57,6 +57,12 @@ public class PondGhostBoss : MonoBehaviour
     [SerializeField] private Material hairTentacleMaterial;
     [Tooltip("촉수 뿌리 쪽 굵기 (반지름, m)")]
     [SerializeField] private float hairTentacleRadius = 0.45f;
+    [Tooltip("촉수 모델 뿌리 쪽에서 잘라낼 비율 (둥근 뿌리 덩어리 제거)")]
+    [SerializeField] private float hairTentacleRootTrim = 0.19f;
+    [Tooltip("뿌리 높이: 머리 뼈에서 위로 얼마나 (뒷머리 위치)")]
+    [SerializeField] private float hairHeadRootUp = 0.15f;
+    [Tooltip("확인용: 머리카락 경로 좌표를 콘솔에 남김")]
+    [SerializeField] private bool debugHairPath = false;
     [SerializeField] private Material hairMaterial;
     [SerializeField] private Material hairTelegraphMaterial;
 
@@ -342,16 +348,27 @@ public class PondGhostBoss : MonoBehaviour
 
         float[] offsets = { -0.25f, 0f, 0.25f };
         float wobblePhase = strandIndex * 1.7f;
+        bool loggedPath = false;
         System.Action<float, Vector3> draw = (reveal, tip) =>
         {
             Vector3 back = -transform.forward;
             Vector3 chestPos = chest != null ? chest.position : transform.position + Vector3.up * 2.5f;
             float headY = head != null ? head.position.y : chestPos.y + 1f;
-            Vector3 root = chestPos + back * hairBackOffset + transform.right * rootSide;
+            // 뿌리: 뒷머리 (머리 뼈에서 뒤로 조금, 줄마다 좌우로 살짝 어긋남)
+            Vector3 headPos = head != null ? head.position : chestPos + Vector3.up * 1f;
+            Vector3 root = headPos + back * hairBackOffset + Vector3.up * hairHeadRootUp + transform.right * rootSide;
             // 등 뒤로 크게 솟구쳤다가(1) 어깨 바깥쪽 위로 돌아 나와(2) 바닥에 꽂힘
             Vector3 c1 = root + back * hairBackReach + transform.right * (sideSign * hairSideSwing * 0.5f) + Vector3.up * hairBackRise;
             Vector3 c2 = new Vector3(transform.position.x, headY + hairArcHeight, transform.position.z)
                          + transform.right * (sideSign * hairSideSwing) + dir * 2f;
+            if (debugHairPath && !loggedPath)
+            {
+                loggedPath = true;
+                Transform vis = animator != null ? animator.transform : transform;
+                Debug.Log($"[머리카락 경로] 줄{strandIndex} 촉수={(tentacle != null)} 보스위치={transform.position} 보스앞={transform.forward} 모델앞={vis.forward} " +
+                          $"플레이어방향={dir} 가슴뼈={(chest != null ? chest.name : "없음")}@{chestPos} 머리높이={headY:0.00} " +
+                          $"뿌리={root} c1={c1} c2={c2} 끝={tip} | 보스기준 뿌리={transform.InverseTransformPoint(root)} c1={transform.InverseTransformPoint(c1)}");
+            }
             if (tentacle != null)
             {
                 // 끝으로 갈수록 살짝 꿈틀거림
@@ -444,7 +461,12 @@ public class PondGhostBoss : MonoBehaviour
         spawnedLines.Add(go);
         BossHairTentacle t = go.AddComponent<BossHairTentacle>();
         Material[] mats = hairTentacleMaterial != null ? new[] { hairTentacleMaterial } : srcRenderer.sharedMaterials;
-        t.Init(srcFilter.sharedMesh, mats, hairTentacleRadius);
+        if (!t.Init(srcFilter.sharedMesh, mats, hairTentacleRadius, hairTentacleRootTrim))
+        {
+            Destroy(go);
+            hairTentacleModel = null;   // 다음부터는 바로 선 머리카락으로
+            return null;
+        }
         return t;
     }
 

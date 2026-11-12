@@ -20,9 +20,15 @@ public class BossHairTentacle : MonoBehaviour
     private readonly Vector3[] cb = new Vector3[Samples + 1];
     private float sideScale = 1f;
 
-    // radius: 뿌리 쪽 굵기(반지름, m)
-    public void Init(UnityEngine.Mesh source, Material[] materials, float radius)
+    // radius: 뿌리 쪽 굵기(반지름, m). 모델의 Read/Write가 꺼져 있으면 false (플레이 중엔 점을 읽을 수 없음)
+    // rootTrim: 뿌리 쪽에서 잘라낼 비율 (0.19면 앞 19%의 둥근 뿌리 덩어리를 없애고 몸통부터 씀)
+    public bool Init(UnityEngine.Mesh source, Material[] materials, float radius, float rootTrim = 0f)
     {
+        if (!source.isReadable)
+        {
+            Debug.LogWarning($"머리카락 촉수 모델 '{source.name}'의 Read/Write가 꺼져 있어 휘게 만들 수 없습니다. 모델 가져오기 설정에서 Read/Write를 켜 주세요.");
+            return false;
+        }
         mesh = Instantiate(source);
         mesh.MarkDynamic();
         GetComponent<MeshFilter>().sharedMesh = mesh;
@@ -49,23 +55,57 @@ public class BossHairTentacle : MonoBehaviour
             else if (t > 0.85f) { rHigh += r; nHigh++; }
         }
         bool flip = nLow > 0 && nHigh > 0 && rHigh / nHigh > rLow / nLow;
-        float baseRadius = Mathf.Max(0.0001f, flip ? rHigh / Mathf.Max(1, nHigh) : rLow / Mathf.Max(1, nLow));
+        rootTrim = Mathf.Clamp(rootTrim, 0f, 0.8f);
+
+        // 잘라낸 뒤 새 뿌리 부근(trim ~ trim+10%)의 굵기를 기준으로 굵기를 맞춤
+        float rSum = 0f; int rCount = 0;
+        for (int i = 0; i < src.Length; i++)
+        {
+            float t = (src[i][axis] - min) / len;
+            if (flip) t = 1f - t;
+            if (t >= rootTrim && t <= rootTrim + 0.1f)
+            {
+                rSum += (new Vector2(src[i][s1], src[i][s2]) - center).magnitude;
+                rCount++;
+            }
+        }
+        float baseRadius = Mathf.Max(0.0001f, rCount > 0 ? rSum / rCount : 0.0001f);
         sideScale = radius / baseRadius;
 
         vT = new float[src.Length];
         vSide = new Vector2[src.Length];
         nLocal = new Vector3[src.Length];
+        float[] rawT = new float[src.Length];
         for (int i = 0; i < src.Length; i++)
         {
             float t = (src[i][axis] - min) / len;
             if (flip) t = 1f - t;
-            vT[i] = t;
+            rawT[i] = t;
+            vT[i] = Mathf.Clamp01((t - rootTrim) / (1f - rootTrim));
             vSide[i] = new Vector2(src[i][s1], src[i][s2]) - center;
             Vector3 n = srcN != null && srcN.Length == src.Length ? srcN[i] : Vector3.up;
             nLocal[i] = new Vector3(flip ? -n[axis] : n[axis], n[s1], n[s2]);
         }
+        // 잘라낸 부분(뿌리 덩어리)에 걸친 면은 그리지 않음
+        if (rootTrim > 0f)
+        {
+            for (int sm = 0; sm < mesh.subMeshCount; sm++)
+            {
+                int[] tris = mesh.GetTriangles(sm);
+                var kept = new System.Collections.Generic.List<int>(tris.Length);
+                for (int k = 0; k < tris.Length; k += 3)
+                {
+                    if (rawT[tris[k]] < rootTrim || rawT[tris[k + 1]] < rootTrim || rawT[tris[k + 2]] < rootTrim)
+                        continue;
+                    kept.Add(tris[k]); kept.Add(tris[k + 1]); kept.Add(tris[k + 2]);
+                }
+                mesh.SetTriangles(kept, sm);
+            }
+        }
+
         verts = new Vector3[src.Length];
         normals = new Vector3[src.Length];
+        return true;
     }
 
     // curve(u): u = 0 뿌리 ~ 1 끝의 월드 좌표. reveal: 지금 뻗어 있는 비율

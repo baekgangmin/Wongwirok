@@ -13,10 +13,16 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float rotationSpeed = 12f;
     [SerializeField] private float gravity = -20f;
 
-    [Header("Dodge")]
-    [SerializeField] private float dodgeDistance = 4f;
-    [SerializeField] private float dodgeDuration = 0.25f;
-    [SerializeField] private float dodgeCooldown = 0.6f;
+    [Header("Dodge (구르기)")]
+    [Tooltip("서 있거나 걸을 때: 짧게 구르기 거리(m) / 이동 시간 / 일어나는 동안 조작 잠금")]
+    [SerializeField] private float dodgeDistance = 3f;
+    [SerializeField] private float dodgeDuration = 0.55f;
+    [SerializeField] private float dodgeRecovery = 0.3f;
+    [Tooltip("달릴 때: 몸을 날려 길게 구르기 거리(m) / 이동 시간 / 일어나는 동안 조작 잠금")]
+    [SerializeField] private float runDodgeDistance = 5f;
+    [SerializeField] private float runDodgeDuration = 0.6f;
+    [SerializeField] private float runDodgeRecovery = 0.17f;
+    [SerializeField] private float dodgeCooldown = 0.1f;
 
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
@@ -27,6 +33,9 @@ public class PlayerMovement : MonoBehaviour
     private PlayerParry playerParry;
     private float verticalVelocity;
     private float dodgeCooldownTimer;
+    private float rollRecoverTimer;
+    private static readonly int RollShortId = Animator.StringToHash("RollShort");
+    private static readonly int RollLongId = Animator.StringToHash("RollLong");
     private float slowMultiplier = 1f;
     private float slowTimer;
 
@@ -175,15 +184,35 @@ public class PlayerMovement : MonoBehaviour
 
         Vector2 input = ReadMoveInput();
 
-        // 회피: 왼쪽 Ctrl
-        if (dodgeCooldownTimer <= 0f && Keyboard.current != null && Keyboard.current.leftCtrlKey.wasPressedThisFrame)
+        // 회피: C
+        if (dodgeCooldownTimer <= 0f && Keyboard.current != null && Keyboard.current.cKey.wasPressedThisFrame)
         {
             Vector3 dodgeDirection = CameraRelativeMove(input);
+            // 방향키 없이 누르면 지금 바라보는 방향으로 구른다
             if (dodgeDirection.sqrMagnitude < 0.0001f)
-                dodgeDirection = -transform.forward;
+            {
+                dodgeDirection = transform.forward;
+                dodgeDirection.y = 0f;
+                dodgeDirection.Normalize();
+            }
 
-            dodgeCooldownTimer = dodgeCooldown;
-            StartCoroutine(DodgeRoutine(dodgeDirection));
+            // 달리는 중(Shift + 이동)이면 길게, 아니면 짧게 구른다
+            bool runRoll = Keyboard.current.leftShiftKey.isPressed && input.sqrMagnitude > 0.01f;
+            dodgeCooldownTimer = dodgeCooldown + (runRoll ? runDodgeDuration + runDodgeRecovery : dodgeDuration + dodgeRecovery);
+            if (runRoll)
+                StartCoroutine(DodgeRoutine(dodgeDirection, runDodgeDistance, runDodgeDuration, runDodgeRecovery, RollLongId));
+            else
+                StartCoroutine(DodgeRoutine(dodgeDirection, dodgeDistance, dodgeDuration, dodgeRecovery, RollShortId));
+            return;
+        }
+
+        if (rollRecoverTimer > 0f)
+        {
+            // 구르고 일어나는 동안은 이동하지 않는다 (공격은 가능 → 회피 공격)
+            rollRecoverTimer -= Time.deltaTime;
+            if (animator != null)
+                animator.SetFloat("Speed", 0f);
+            ApplyGravityOnly();
             return;
         }
 
@@ -216,25 +245,43 @@ public class PlayerMovement : MonoBehaviour
         controller.Move((move * speed * slowMultiplier + Vector3.up * verticalVelocity) * Time.deltaTime);
     }
 
-    private IEnumerator DodgeRoutine(Vector3 direction)
+    private IEnumerator DodgeRoutine(Vector3 direction, float distance, float duration, float recovery, int animTrigger)
     {
         IsDodging = true;
         IsInvulnerable = true;
         transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        if (animator != null)
+            animator.SetTrigger(animTrigger);
 
-        float dodgeSpeed = dodgeDistance / dodgeDuration;
+        // 처음에 빠르고 끝으로 갈수록 느려지게 (구르며 감속)
+        float moved = 0f;
         float elapsed = 0f;
-
-        while (elapsed < dodgeDuration)
+        while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            controller.Move(direction * dodgeSpeed * Time.deltaTime);
+            float k = Mathf.Clamp01(elapsed / duration);
+            float target = distance * (1f - (1f - k) * (1f - k));
+            Vector3 step = direction * (target - moved);
+            moved = target;
+            if (controller.isGrounded && verticalVelocity < 0f)
+                verticalVelocity = -2f;
+            verticalVelocity += gravity * Time.deltaTime;
+            controller.Move(step + Vector3.up * verticalVelocity * Time.deltaTime);
             yield return null;
         }
 
         IsInvulnerable = false;
         IsDodging = false;
         LastDodgeEndTime = Time.time;
+        rollRecoverTimer = recovery;
+    }
+
+    private void ApplyGravityOnly()
+    {
+        if (controller.isGrounded && verticalVelocity < 0f)
+            verticalVelocity = -2f;
+        verticalVelocity += gravity * Time.deltaTime;
+        controller.Move(Vector3.up * verticalVelocity * Time.deltaTime);
     }
 
     private Vector2 ReadMoveInput()

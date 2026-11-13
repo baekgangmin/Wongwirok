@@ -96,37 +96,42 @@ public static class HumanWorldBuilder
         SetupDaylight();
 
         // 3) 지형: 연못 지형(복제본)의 겉흙을 풀밭으로, 주변에 마을/언덕 지형 추가
-        var grass = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Fantasy Skybox FREE/Scenes/Textures (Terrain)/TerrainGrass.terrainlayer");
-        var dirt = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Fantasy Skybox FREE/Scenes/Textures (Terrain)/TerrainDirt.terrainlayer");
+        // 실사 바닥 (Poly Haven CC0): 풀 / 마당 모래 / 박석 / 흙 / 성긴 풀
+        var grass = PHLayer("grass_ground", 6f, new Color(0.78f, 0.95f, 0.62f, 1f)); // 누런 풀 → 조금 푸르게
+        var dirt = PHLayer("dirt", 4f);
+        var groundLayers = new[] { grass, PHLayer("gravelly_sand", 3f, new Color(0.93f, 0.9f, 0.88f, 1f)), PHLayer("rock_tile_floor", 3f), dirt }; // URP 지형은 한 번에 4종까지만 그려서 4종으로 제한
         var lakebed = AssetDatabase.LoadAssetAtPath<TerrainLayer>(GenDir + "LakebedLayer.terrainlayer");
         DeepenLake(lake, -1.32f, 2.4f);
         RepaintLakeTerrain(lake, grass, dirt, lakebed);
 
-        var village = CreateTerrain("HW_Terrain_Village", new Vector3(-160, BaseY, -275), new Vector3(320, TerrainHeight, 240), 257, lake, grass, dirt, VillageCore);
-        var west = CreateTerrain("HW_Terrain_West", new Vector3(-160, BaseY, -35), new Vector3(80, TerrainHeight, 160), 129, lake, grass, dirt, r => false);
-        var east = CreateTerrain("HW_Terrain_East", new Vector3(80, BaseY, -35), new Vector3(80, TerrainHeight, 160), 129, lake, grass, dirt, r => false);
-        var north = CreateTerrain("HW_Terrain_North", new Vector3(-160, BaseY, 125), new Vector3(320, TerrainHeight, 80), 129, lake, grass, dirt, r => false);
+        var village = CreateTerrain("HW_Terrain_Village", new Vector3(-160, BaseY, -275), new Vector3(320, TerrainHeight, 240), 257, lake, groundLayers, VillageCore);
+        var west = CreateTerrain("HW_Terrain_West", new Vector3(-160, BaseY, -35), new Vector3(80, TerrainHeight, 160), 129, lake, groundLayers, r => false);
+        var east = CreateTerrain("HW_Terrain_East", new Vector3(80, BaseY, -35), new Vector3(80, TerrainHeight, 160), 129, lake, groundLayers, r => false);
+        var north = CreateTerrain("HW_Terrain_North", new Vector3(-160, BaseY, 125), new Vector3(320, TerrainHeight, 80), 129, lake, groundLayers, r => false);
         terrains.AddRange(new[] { village, west, east, north });
         lake.SetNeighbors(west, north, east, village);
         village.SetNeighbors(null, lake, null, null);
 
-        // 마을 개울 (돌다리 자리)
+        // 금천 (정문 안쪽, 금천교 자리)
         CarveStream(village, StreamZ, 4f, 1.6f);
-        PaintRoads(village, dirt);
 
         // 4) 연못가: 보스맵과 같은 자리에 인간 세계 짝
         PlaceLakeside();
 
-        // 5) 마을
-        PlaceVillage();
+        // 5) 궁궐
+        PlacePalace();
 
         // 6) 연못 물을 맑은 낮 물로
         SetupWater();
 
-        // 7) 플레이어 시작 위치: 마을 광장 남쪽
+        // 7) 플레이어 시작 위치: 정문 바로 안쪽, 북쪽(정전 방향)을 바라봄
         var player = GameObject.Find("Player");
-        player.transform.position = new Vector3(0, Ground(0, -84) + 1.2f, -84);
+        player.transform.position = new Vector3(0, Ground(0, -182) + 1.2f, -182);
         player.transform.rotation = Quaternion.identity;
+        // 손에 든 나뭇가지·검도 같은 그림체로 (glb 마다 재질 따로)
+        foreach (var t in player.GetComponentsInChildren<Transform>(true))
+            if (t.parent != null && t.parent.name == "WeaponMount" && PrefabUtility.IsAnyPrefabInstanceRoot(t.gameObject))
+                Toonify(t.gameObject, PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(t.gameObject), 0.004f);
         var cam = GameObject.Find("Main Camera");
         cam.transform.position = player.transform.position + new Vector3(0, 3, -6);
 
@@ -138,13 +143,14 @@ public static class HumanWorldBuilder
     // ---------------- 분위기 ----------------
     static void SetupDaylight()
     {
-        RenderSettings.skybox = AssetDatabase.LoadAssetAtPath<Material>("Assets/Fantasy Skybox FREE/Cubemaps/Classic/FS000_Day_01.mat");
+        RenderSettings.skybox = InkSkyMat();
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
         RenderSettings.ambientIntensity = 1f;
+        DynamicGI.UpdateEnvironment();
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = new Color(0.72f, 0.79f, 0.86f);
-        RenderSettings.fogDensity = 0.006f;
+        RenderSettings.fogDensity = 0.0025f;
         foreach (var l in Object.FindObjectsByType<Light>(FindObjectsInactive.Include))
         {
             if (l.type != LightType.Directional) continue;
@@ -158,28 +164,24 @@ public static class HumanWorldBuilder
         var fo = fogGo.AddComponent<SceneHeightFogOverride>();
         var so = new SerializedObject(fo);
         so.FindProperty("heightFogMaterial").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>(GenDir + "HeightFog.mat");
+        so.FindProperty("density").floatValue = 0.008f; // 낮이라 옅게
         so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    // 손그림 물 재질 (연못·금천 공용)
+    static Material InkWaterMat()
+    {
+        string path = GenDir + "HW_InkWater.mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null) { mat = new Material(Shader.Find("Wongwirok/InkWater")); AssetDatabase.CreateAsset(mat, path); }
+        return mat;
     }
 
     static void SetupWater()
     {
         var water = GameObject.Find("BossArena/Water");
         if (water == null) return;
-        string path = GenDir + "LakeWater_Day.mat";
-        var src = AssetDatabase.LoadAssetAtPath<Material>(GenDir + "LakeWater.mat");
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (mat == null)
-        {
-            mat = new Material(src);
-            AssetDatabase.CreateAsset(mat, path);
-        }
-        mat.CopyPropertiesFromMaterial(src);
-        mat.SetColor("_DeepColor", new Color(0.04f, 0.2f, 0.25f, 0.95f));
-        mat.SetColor("_ShallowColor", new Color(0.2f, 0.45f, 0.5f, 0.9f));
-        mat.SetFloat("_ReflectionStrength", 0.35f);
-        mat.SetFloat("_WaterDepth", 1.6f);
-        EditorUtility.SetDirty(mat);
-        water.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        water.GetComponent<MeshRenderer>().sharedMaterial = InkWaterMat();
         water.transform.parent.name = "Lake";
     }
 
@@ -207,12 +209,11 @@ public static class HumanWorldBuilder
         td.SetAlphamaps(0, 0, a);
     }
 
-    // 마을 중심부(평지) 영역
-    // 마을 크기 (가로 ±CoreX, 남쪽 끝 CoreSouth) / 광장 / 개울 위치
-    const float CoreX = 78f, CoreSouth = -198f, PlazaZ = -105f, StreamZ = -135f;
+    // 궁궐 평지 영역 (가로 ±CoreX, 남쪽 끝 CoreSouth) / 금천 위치
+    const float CoreX = 78f, CoreSouth = -198f, StreamZ = -172f;
     static bool VillageCore(Vector2 p) => p.x > -CoreX && p.x < CoreX && p.y > CoreSouth && p.y < -35;
 
-    static Terrain CreateTerrain(string name, Vector3 pos, Vector3 size, int res, Terrain lake, TerrainLayer grass, TerrainLayer dirt, System.Func<Vector2, bool> isCore)
+    static Terrain CreateTerrain(string name, Vector3 pos, Vector3 size, int res, Terrain lake, TerrainLayer[] layers, System.Func<Vector2, bool> isCore)
     {
         var td = new TerrainData { heightmapResolution = res, size = size };
         td.alphamapResolution = res - 1;
@@ -220,7 +221,7 @@ public static class HumanWorldBuilder
         System.IO.Directory.CreateDirectory("Assets/Scenes/HumanWorld_01");
         AssetDatabase.DeleteAsset(path);
         AssetDatabase.CreateAsset(td, path);
-        td.terrainLayers = new[] { grass, dirt };
+        td.terrainLayers = layers;
 
         var heights = new float[res, res];
         var lakeTd = lake.terrainData;
@@ -241,21 +242,21 @@ public static class HumanWorldBuilder
                 float dCore = DistanceOutsideCore(new Vector2(wx, wz), isCore);
                 float hill = 22f * Smooth(0f, 60f, dCore) + 6f * (Mathf.PerlinNoise(wx * 0.02f + 31, wz * 0.02f + 7) - 0.3f) * Smooth(0f, 25f, dCore);
                 // 마을 안쪽도 아주 완만한 기복 (이음매 근처는 0)
-                float gentle = 0.8f * (Mathf.PerlinNoise(wx * 0.015f, wz * 0.015f) - 0.5f) * Smooth(4f, 30f, dOut);
+                float gentle = 0.8f * (Mathf.PerlinNoise(wx * 0.015f, wz * 0.015f) - 0.5f) * Smooth(4f, 30f, dOut) * Smooth(0f, 10f, dCore); // 궁궐 안은 평평하게
                 h += hill + gentle;
                 heights[y, x] = Mathf.Clamp01((h - BaseY) / size.y);
             }
         td.SetHeights(0, 0, heights);
 
         int ar = td.alphamapResolution;
-        var a = new float[ar, ar, 2];
+        var a = new float[ar, ar, layers.Length];
         for (int y = 0; y < ar; y++)
             for (int x = 0; x < ar; x++)
             {
                 float wx = pos.x + (x + 0.5f) / ar * size.x;
                 float wz = pos.z + (y + 0.5f) / ar * size.z;
-                float r = RoadMask(wx, wz);
-                a[y, x, 0] = 1 - r; a[y, x, 1] = r;
+                var w = GroundWeights(wx, wz);
+                for (int k = 0; k < w.Length; k++) a[y, x, k] = w[k];
             }
         td.SetAlphamaps(0, 0, a);
 
@@ -288,26 +289,70 @@ public static class HumanWorldBuilder
 
     static float Smooth(float a, float b, float v) => Mathf.SmoothStep(0, 1, Mathf.InverseLerp(a, b, v));
 
-    // 길: 남북 큰길(x≈0), 광장, 동서 골목 두 줄
+    // 궁궐 담 안쪽 전체를 모래 바닥으로 (담 밖 4m 까지 부드럽게)
     static float RoadMask(float x, float z)
     {
-        float m = 0;
-        // 큰길 (연못 → 남쪽 입구)
-        if (z < 8 && z > CoreSouth + 6) m = Mathf.Max(m, 1 - Smooth(2.5f, 4.5f, Mathf.Abs(x + 1.5f * Mathf.Sin(z * 0.03f))));
-        // 광장
-        m = Mathf.Max(m, 1 - Smooth(12f, 15f, Vector2.Distance(new Vector2(x, z), new Vector2(0, PlazaZ))));
-        // 광장 → 기와집 대문
-        if (x > 8 && x < 37) m = Mathf.Max(m, 1 - Smooth(1.5f, 2.8f, Mathf.Abs(z - (PlazaZ + 1.5f))));
-        // 동서 골목 두 줄
-        foreach (float rz in new[] { -75f, -150f })
-            if (Mathf.Abs(x) < 62) m = Mathf.Max(m, 1 - Smooth(1.6f, 3f, Mathf.Abs(z - rz - 2f * Mathf.Sin(x * 0.05f))));
-        // 세로 골목 두 줄
-        if (z > -128 && z < -75) foreach (float rx in new[] { -40f, 66f })
-                m = Mathf.Max(m, 1 - Smooth(1.5f, 2.8f, Mathf.Abs(x - rx)));
-        return Mathf.Clamp01(m);
+        float dx = Mathf.Max(-CoreX - x, 0, x - CoreX), dz = Mathf.Max(CoreSouth - z, 0, z - (-35));
+        return 1 - Smooth(0f, 4f, Mathf.Sqrt(dx * dx + dz * dz));
     }
 
-    static void PaintRoads(Terrain t, TerrainLayer dirt) { /* CreateTerrain 에서 이미 칠함 */ }
+    // ---------------- 실사 바닥·하늘 (Poly Haven CC0, Assets/Environment/PolyHaven) ----------------
+    const string PH = "Assets/Environment/PolyHaven/";
+
+    static Texture2D PHTex(string file, bool normal)
+    {
+        string p = PH + file;
+        var imp = (TextureImporter)AssetImporter.GetAtPath(p);
+        if (normal && imp.textureType != TextureImporterType.NormalMap)
+        {
+            imp.textureType = TextureImporterType.NormalMap;
+            imp.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(p);
+    }
+
+    static TerrainLayer PHLayer(string n, float tile) => PHLayer(n, tile, Color.white);
+    static TerrainLayer PHLayer(string n, float tile, Color tint)
+    {
+        string path = GenDir + "PH_" + n + ".terrainlayer";
+        var layer = AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+        if (layer == null) { layer = new TerrainLayer(); AssetDatabase.CreateAsset(layer, path); }
+        layer.diffuseTexture = PHTex(n + "_diff_2k.jpg", false);
+        layer.normalMapTexture = PHTex(n + "_nor_gl_2k.jpg", true);
+        layer.normalScale = 1f;
+        layer.tileSize = new Vector2(tile, tile);
+        layer.smoothness = 0f;
+        layer.diffuseRemapMax = tint; // 색감 보정 (곱하기)
+        EditorUtility.SetDirty(layer);
+        return layer;
+    }
+
+    // 바닥 레이어 비율: [풀, 마당 모래, 박석, 흙]
+    const float WallX = 70f, WallS = -195f, WallN = -35f;
+    static float[] GroundWeights(float x, float z)
+    {
+        float big = Mathf.PerlinNoise(x * 0.025f + 10, z * 0.025f + 5);
+        float fine = Mathf.PerlinNoise(x * 0.11f + 3, z * 0.11f + 9);
+        // 담 안쪽 깊이 (담에서 멀어질수록 +)
+        float inside = Mathf.Min(WallX - Mathf.Abs(x), Mathf.Min(z - WallS, WallN - z));
+        float inMask = Smooth(-1.5f, 1.5f, inside);
+        // 담 안: 마사토 마당 + 군데군데 다져진 흙 + 담 밑 풀 + 중심축 박석 길
+        float dirtIn = Mathf.Clamp01((big - 0.5f) * 2.2f) * 0.7f + Mathf.Clamp01((fine - 0.6f) * 2f) * 0.3f;
+        float edgeGrass = (1 - Smooth(1.5f, 5f, inside)) * (0.6f + 0.4f * fine);
+        float stone = (1 - Smooth(2.6f, 3.3f, Mathf.Abs(x))) * Smooth(0f, 1f, inside);
+        float sand = Mathf.Max(0, 1 - dirtIn - edgeGrass);
+        // 담 밖: 풀밭 + 흙 얼룩
+        float outDirt = Mathf.Clamp01((fine - 0.68f) * 3f) * 0.45f;
+        float[] w = {
+            (1 - inMask) * (1 - outDirt) + inMask * edgeGrass * (1 - stone),
+            inMask * sand * (1 - stone),
+            inMask * stone,
+            inMask * dirtIn * (1 - stone) + (1 - inMask) * outDirt,
+        };
+        float sum = 0; foreach (var v in w) sum += v;
+        for (int i = 0; i < w.Length; i++) w[i] /= Mathf.Max(sum, 1e-4f);
+        return w;
+    }
 
     static void CarveStream(Terrain t, float zCenter, float halfWidth, float depth)
     {
@@ -322,7 +367,7 @@ public static class HumanWorldBuilder
             {
                 float wx = p.x + (float)x / (res - 1) * td.size.x;
                 float wz = p.z + (float)y / (res - 1) * td.size.z;
-                float d = Mathf.Abs(wz - zCenter - 4f * Mathf.Sin(wx * 0.03f));
+                float d = Mathf.Abs(wz - zCenter); // 궁궐 금천은 곧은 물길
                 float k = (1 - Smooth(halfWidth * 0.5f, halfWidth * 1.6f, d)) * (1 - Smooth(CoreX - 6f, CoreX + 6f, Mathf.Abs(wx)));
                 h[y, x] = Mathf.Lerp(h[y, x], Mathf.Min(h[y, x], bottom), k);
             }
@@ -333,8 +378,8 @@ public static class HumanWorldBuilder
         water.name = "HW_StreamWater";
         water.transform.SetParent(root);
         water.transform.position = new Vector3(0, refY - depth * 0.45f, zCenter);
-        water.transform.localScale = new Vector3(CoreX * 2f / 10f - 0.4f, 1, 1.6f);
-        water.GetComponent<MeshRenderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(GenDir + "LakeWater_Day.mat") ?? AssetDatabase.LoadAssetAtPath<Material>(GenDir + "LakeWater.mat");
+        water.transform.localScale = new Vector3(CoreX * 2f / 10f - 0.4f, 1, 0.5f);
+        water.GetComponent<MeshRenderer>().sharedMaterial = InkWaterMat();
     }
 
     // ---------------- 배치 도우미 ----------------
@@ -367,8 +412,53 @@ public static class HumanWorldBuilder
                 var mc = mf.gameObject.AddComponent<MeshCollider>();
                 mc.sharedMesh = mf.sharedMesh;
             }
+        Toonify(vis, AssetDatabase.GetAssetPath(src), Mathf.Clamp(scale * 0.003f, 0.008f, 0.06f));
         GameObjectUtility.SetStaticEditorFlags(holder, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
         return holder;
+    }
+
+    // ---------------- 손그림 그림체 (셀 셰이딩 + 붓 외곽선) ----------------
+    const string ToonDir = "Assets/Environment/Painted/Toon/";
+
+    // glb 원래 재질의 색 텍스처로 ToonInk 재질을 만들어(에셋별 1개) 바꿔 끼운다. 외곽선 굵기는 처음 쓰인 크기 기준
+    static void Toonify(GameObject go, string assetPath, float outline)
+    {
+        var shader = Shader.Find("Wongwirok/ToonInk");
+        System.IO.Directory.CreateDirectory(ToonDir);
+        string key = System.IO.Path.GetFileNameWithoutExtension(assetPath).Replace(" ", "_");
+        foreach (var r in go.GetComponentsInChildren<Renderer>())
+        {
+            var ms = r.sharedMaterials;
+            for (int i = 0; i < ms.Length; i++)
+            {
+                if (ms[i] == null || ms[i].shader == shader) continue;
+                string path = ToonDir + key + "_" + ms[i].name.Replace(" ", "_").Replace("/", "_") + ".mat";
+                var toon = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (toon == null)
+                {
+                    toon = new Material(shader);
+                    toon.SetFloat("_OutlineWidth", outline);
+                    AssetDatabase.CreateAsset(toon, path);
+                }
+                // 에셋을 새로 뽑아 덮어쓰면 텍스처도 바뀌므로 매번 다시 연결
+                Texture tex = null;
+                foreach (var prop in new[] { "baseColorTexture", "_BaseMap", "_MainTex" })
+                    if (ms[i].HasProperty(prop) && ms[i].GetTexture(prop) != null) { tex = ms[i].GetTexture(prop); break; }
+                toon.SetTexture("_BaseMap", tex);
+                if (ms[i].HasProperty("baseColorFactor")) toon.SetColor("_BaseColor", ms[i].GetColor("baseColorFactor"));
+                EditorUtility.SetDirty(toon);
+                ms[i] = toon;
+            }
+            r.sharedMaterials = ms;
+        }
+    }
+
+    static Material InkSkyMat()
+    {
+        string path = GenDir + "HW_InkSky.mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null) { mat = new Material(Shader.Find("Wongwirok/InkSky")); AssetDatabase.CreateAsset(mat, path); }
+        return mat;
     }
 
     static void TreeCollider(GameObject tree, float radius, float height)
@@ -427,7 +517,7 @@ public static class HumanWorldBuilder
         // 선착장: 연못 남쪽 물가 (보스맵 플레이어 시작 지점 앞), 물 쪽으로 뻗게
         float shoreZ = FindShore(0f);
         var pier = Place("Pier", "Pier", new Vector3(6f, 0, shoreZ + 2f), 90f, 8f, lakeRoot, true, 0f);
-        if (pier) pier.transform.position = new Vector3(6f, -2.85f, shoreZ + 2.5f); // 갑판이 물가 땅보다 살짝 높게 (올라설 수 있게)
+        if (pier) pier.transform.position = new Vector3(6f, -1.95f, shoreZ + 2.5f); // 갑판이 물 위로 살짝 (새 그림체 선착장은 높이 0.9m)
 
         // 선착장 옆 버드나무: 밧줄을 묶고 몸에 감은 뒤 연못 깊이 들어가면 귀의 세계로
         Vector3 treePos = new Vector3(-3f, 0, shoreZ - 5f);
@@ -448,6 +538,17 @@ public static class HumanWorldBuilder
             Debug.Log("[HumanWorldBuilder] 밧줄 나무 " + ropeTree.transform.position + " 묶는 자리 " + tie.position);
         }
         Debug.Log("[HumanWorldBuilder] 남쪽 물가 z=" + shoreZ);
+
+        // 보스맵에서 복사된 정자 → 인간 세계용 궁궐 정자로 바꿈 (계단 위 난간을 뚫은 버전)
+        var oldPav = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == "Structure_Pavilion");
+        if (oldPav)
+        {
+            oldPav.SetActive(false);
+            Place(PL + "Pavilion.glb", "Pavilion", oldPav.transform.position, 180, 14f, lakeRoot, true, 0f);
+        }
+        // 보스맵에서 복사된 장승도 같은 그림체로
+        foreach (var g in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+            if (g.name.StartsWith("Structure_Totem")) Toonify(g, "Totem", 0.02f);
     }
 
     static float FindShore(float x)
@@ -457,118 +558,65 @@ public static class HumanWorldBuilder
         return 10;
     }
 
-    // ---------------- 마을 ----------------
-    static void PlaceVillage()
+    // ---------------- 궁궐 ----------------
+    // 에셋 앞면 = +Z(transform.forward). 남쪽을 보게 하려면 yaw 180
+    const string PL = "Assets/VarcoAssets/Palace/";
+    const float WallLen = 6f;
+
+    static void PlacePalace()
     {
-        var v = new GameObject("HW_Village").transform;
+        var v = new GameObject("HW_Palace").transform;
         v.SetParent(root);
 
-        // 남쪽 입구 (z≈-185): 장승, 솟대, 서낭당
-        Place("Assets/VarcoAssets/Structure/Korean Wooden Totem.glb", "Jangseung_L", new Vector3(-5, 0, -184), 180, 4.2f, v, true, 0f);
-        Place("Assets/VarcoAssets/Structure/Korean Wooden Totem.glb", "Jangseung_R", new Vector3(5, 0, -184), 180, 4.2f, v, true, 0f);
-        Place("Sotdae", "Sotdae_L", new Vector3(-10, 0, -189), 0, 7f, v, false, 0f);
-        Place("Sotdae", "Sotdae_R", new Vector3(10, 0, -191), 20, 6.5f, v, false, 0f);
-        Place("Seonangdang", "Seonangdang", new Vector3(-17, 0, -180), 30, 5f, v, true, 0f);
-
-        // 광장: 느티나무 정자목 + 평상 + 우물
-        var z = Place("Zelkova", "Plaza_Zelkova", new Vector3(-8, 0, PlazaZ - 3), 40, 15f, v, false, 0.02f);
-        TreeCollider(z, 1.2f, 8f);
-        Place("Pyeongsang", "Plaza_Pyeongsang", new Vector3(-4, 0, PlazaZ + 4), 15, 2.4f, v, true, 0f);
-        Place("Well", "Plaza_Well", new Vector3(7, 0, PlazaZ - 4), 0, 2.4f, v, true, 0f);
-        Place("Cheongsachorong", "Plaza_Chorong_1", new Vector3(11, 0, PlazaZ + 8), 200, 2.6f, v, true, 0f);
-        Place("Cheongsachorong", "Plaza_Chorong_2", new Vector3(-11, 0, PlazaZ - 10), 20, 2.6f, v, true, 0f);
-
-        // 주막: 연못으로 가는 큰길 북쪽 끝
-        Place("Jumak", "Jumak", new Vector3(-20, 0, -52), 90, 10f, v, true);
-        Place("Pyeongsang", "Jumak_Pyeongsang", new Vector3(-9, 0, -47), 0, 2.4f, v, true, 0f);
-        Place("Jangdokdae", "Jumak_Jangdok", new Vector3(-30, 0, -44), 0, 2.2f, v, true, 0f);
-        Place("Cheongsachorong", "Jumak_Chorong", new Vector3(-7, 0, -58), 0, 2.6f, v, true, 0f);
-        Place("Cart", "Jumak_Cart", new Vector3(-9, 0, -63), 170, 2.6f, v, true, 0f);
-
-        // 나뭇가지 상점: 광장 북동쪽, 큰길을 바라봄
-        Place("BranchShop", "BranchShop", new Vector3(17, 0, -88), -90, 6f, v, true);
-        Place("Jige", "BranchShop_Jige", new Vector3(12, 0, -93), 60, 1.6f, v, false, 0f);
-
-        // 기와집 + 솟을대문 + 흙담 (광장 동쪽, 대문이 광장 쪽을 바라봄)
-        Vector3 giwa = new Vector3(50, 0, PlazaZ);
-        Place("GiwaHouse", "GiwaHouse", giwa + new Vector3(2, 0, 1.5f), -90, 11f, v, true);
-        Place("SoseulGate", "SoseulGate", giwa + new Vector3(-13.5f, 0, 1.5f), -90, 6.5f, v, true);
-        for (int i = -3; i <= 3; i++)
-        {
-            Place("EarthWall", "GiwaWall_N" + i, giwa + new Vector3(i * 3.6f, 0, 15), 0, 3.8f, v, true);
-            Place("EarthWall", "GiwaWall_S" + i, giwa + new Vector3(i * 3.6f, 0, -12), 0, 3.8f, v, true);
-        }
-        for (int i = -3; i <= 3; i++)
-        {
-            if (i == 0) continue;
-            Place("EarthWall", "GiwaWall_W" + i, giwa + new Vector3(-12.6f, 0, 1.5f + i * 3.6f), 90, 3.8f, v, true);
-            Place("EarthWall", "GiwaWall_E" + i, giwa + new Vector3(12.6f, 0, 1.5f + i * 3.6f), 90, 3.8f, v, true);
-        }
-        Place("Jangdokdae", "Giwa_Jangdok", giwa + new Vector3(8, 0, -8), 0, 2.2f, v, true, 0f);
-
-        // 초가집들 (집 앞이 길을 바라보게)
-        var houseSpots = new List<(Vector3 p, float yaw)>
-        {
-            // 큰길 양옆
-            (new Vector3(-21, 0, -80), 90), (new Vector3(-21, 0, -122), 90), (new Vector3(-21, 0, -165), 90),
-            (new Vector3(21, 0, -68), -90), (new Vector3(21, 0, -124), -90), (new Vector3(21, 0, -168), -90),
-            // 북쪽 골목(z=-75) 위아래
-            (new Vector3(-52, 0, -64), 180), (new Vector3(38, 0, -63), 180), (new Vector3(58, 0, -63), 180),
-            (new Vector3(-55, 0, -87), 0),
-            // 서쪽 세로 골목(x=-40) 양옆
-            (new Vector3(-52, 0, -108), 90), (new Vector3(-28, 0, -100), -90),
-            // 남쪽 골목(z=-150) 아래
-            (new Vector3(-52, 0, -161), 0), (new Vector3(-35, 0, -162), 0), (new Vector3(36, 0, -161), 0), (new Vector3(54, 0, -162), 0),
-            // 바깥 줄
-            (new Vector3(-68, 0, -128), 90), (new Vector3(70, 0, -132), -90),
-        };
-        int n = 0;
-        foreach (var (p, yaw) in houseSpots)
-        {
-            string asset = (n % 2 == 0) ? "ChogaHouseA" : "ChogaHouseB";
-            var h = Place(asset, "Choga_" + n, p, yaw + R(-6, 6), R(8f, 9.5f), v, true);
-            DecorateHouse(h.transform, v, n);
-            n++;
-        }
-
-        // 큰길 청사초롱
-        for (float lz = -178; lz < -40; lz += 26)
-        {
-            if (Mathf.Abs(lz - PlazaZ) < 16 || Mathf.Abs(lz - StreamZ) < 7) continue;
-            Place("Cheongsachorong", "Road_Chorong_L", new Vector3(-5.5f, 0, lz), 90, 2.6f, v, true, 0f);
-            Place("Cheongsachorong", "Road_Chorong_R", new Vector3(5.5f, 0, lz + 13), -90, 2.6f, v, true, 0f);
-        }
-
-        // 돌다리: 개울을 건너는 큰길
-        var br = Place("StoneBridge", "StoneBridge", new Vector3(0, 0, StreamZ), 90, 11f, v, true, 0f);
+        // 중심축: 정문 → 금천교 → 중문 → 품계석 → 월대·정전 → 편전 → 침전 → 후원 문 → 연못
+        Place(PL + "PalaceGate.glb", "Jeongmun", new Vector3(0, 0, -195), 180, 24f, v, true, 0f);
+        var br = Place("StoneBridge", "Geumcheongyo", new Vector3(0, 0, StreamZ), 90, 11f, v, true, 0f);
         if (br) br.transform.position = new Vector3(0, Ground(0, StreamZ + 8) - 0.6f, StreamZ);
+        Place(PL + "MiddleGate.glb", "Jungmun", new Vector3(0, 0, -150), 180, 14f, v, true, 0f);
+        for (int i = 0; i < 4; i++)
+            foreach (int side in new[] { -1, 1 })
+                Place(PL + "RankStone.glb", "Pumgyeseok", new Vector3(side * 4f, 0, -140 + i * 4f), 180, 1f, v, true, 0f);
 
-        // 남쪽 들판: 돌담과 짚더미 (입구 양옆)
-        for (int i = 0; i < 10; i++)
+        // 월대(납작하게 늘림) 위에 정전
+        var woldae = Place(PL + "Woldae.glb", "Woldae", new Vector3(0, 0, -112), 180, 1f, v, true, 0f);
+        if (woldae) woldae.transform.GetChild(0).localScale = new Vector3(30f, 10f, 22f);
+        var hall = Place(PL + "ThroneHall.glb", "Jeongjeon", new Vector3(0, 0, -110), 180, 22f, v, true, 0f);
+        if (hall) hall.transform.position += Vector3.up * 2.0f;
+        Place(PL + "Deumu.glb", "Deumu_W", new Vector3(-13, 0, -126), 0, 1.6f, v, true, 0f);
+        Place(PL + "Deumu.glb", "Deumu_E", new Vector3(13, 0, -126), 0, 1.6f, v, true, 0f);
+        // 정전 마당 양옆 행각 (안쪽을 바라봄)
+        foreach (float z in new[] { -137f, -119f, -101f })
         {
-            float x = R(-72, 72), zz = R(-196, -172);
-            if (Mathf.Abs(x) < 22 || RoadMask(x, zz) > 0.1f) continue;
-            Place("StrawStack", "Field_Straw_" + i, new Vector3(x, 0, zz), R(0, 360), R(2.2f, 3f), v, true, 0f);
+            Place(PL + "Corridor.glb", "Haenggak_W", new Vector3(-28, 0, z), 90, 18f, v, true, 0f);
+            Place(PL + "Corridor.glb", "Haenggak_E", new Vector3(28, 0, z), -90, 18f, v, true, 0f);
         }
-        for (int i = 0; i < 6; i++)
-        {
-            float x = (i % 2 == 0 ? -1 : 1) * R(28, 70), zz = R(-194, -174);
-            Place("StoneWall", "FieldWall_" + i, new Vector3(x, 0, zz), R(-20, 20), 4.5f, v, true);
-        }
-        // 마을 안 나무 몇 그루 + 바깥 숲
+        Place(PL + "Hall.glb", "Pyeonjeon", new Vector3(0, 0, -82), 180, 18f, v, true, 0f);
+        Place(PL + "Hall.glb", "Chimjeon", new Vector3(0, 0, -55), 180, 18f, v, true, 0f);
+
+        // 서쪽: 수라간·궐내각사·장원서(나뭇가지 상점) / 동쪽: 대비전·동궁 (나중 스테이지)
+        Place(PL + "Hall.glb", "Suragan", new Vector3(-50, 0, -60), 90, 14f, v, true, 0f);
+        Place(PL + "Hall.glb", "Gwollaegaksa", new Vector3(-50, 0, -88), 90, 14f, v, true, 0f);
+        Place(PL + "Hall.glb", "Jangwonseo", new Vector3(-50, 0, -120), 90, 14f, v, true, 0f);
+        Place("Jige", "Jangwonseo_Jige", new Vector3(-40, 0, -126), 60, 1.6f, v, false, 0f);
+        Place(PL + "Hall.glb", "Daebijeon", new Vector3(50, 0, -60), -90, 14f, v, true, 0f);
+        Place(PL + "Hall.glb", "Donggung", new Vector3(50, 0, -110), -90, 16f, v, true, 0f);
+
+        // 궁궐 담장: 남쪽(정문 자리 비움), 북쪽(후원 문 자리 비움), 동·서
+        WallLine(v, -70, 70, -195, true, 12.5f);
+        WallLine(v, -70, 70, -35, true, 3f);
+        WallLine(v, -195, -35, -70, false, 0f);
+        WallLine(v, -195, -35, 70, false, 0f);
+        Place(PL + "GardenGate.glb", "HuwonGate", new Vector3(0, 0, -35), 180, 6f, v, true, 0f);
+
+        // 담 밖 숲, 연못 지형 양옆/북쪽 언덕 나무
         for (int i = 0; i < 90; i++)
         {
             float x = R(-158, 158), zz = R(-272, -40);
-            bool outer = Mathf.Abs(x) > CoreX + 4 || zz < CoreSouth - 4;
-            if (!outer && i % 5 != 0) continue;
-            if (RoadMask(x, zz) > 0.05f) continue;
-            if (!outer && NearHouse(houseSpots, x, zz, 13)) continue;
-            if (!outer && Mathf.Abs(x - giwa.x) < 18 && Mathf.Abs(zz - giwa.z) < 18) continue;
+            if (Mathf.Abs(x) < CoreX + 4 && zz > CoreSouth - 4) continue;
             string kind = (i % 5 == 0) ? "Pine" : (i % 2 == 0 ? "Zelkova" : "Assets/VarcoAssets/Tree/Green Weeping Willow.glb");
             var t = Place(kind, "Tree", new Vector3(x, 0, zz), R(0, 360), R(10, 14), v, false, 0.02f);
             TreeCollider(t, 0.6f, 6f);
         }
-        // 연못 지형 양옆/북쪽 언덕 소나무
         for (int i = 0; i < 50; i++)
         {
             float x = R(-158, 158), zz = R(-34, 200);
@@ -578,38 +626,22 @@ public static class HumanWorldBuilder
         }
     }
 
-    static bool NearHouse(List<(Vector3 p, float yaw)> spots, float x, float z, float r)
+    // a~b 구간에 담장을 잇는다. alongX 면 z=fixedC 인 동서 담, 아니면 x=fixedC 인 남북 담. 0 을 중심으로 ±gapHalf 는 문 자리로 비움
+    static void WallLine(Transform parent, float a, float b, float fixedC, bool alongX, float gapHalf)
     {
-        foreach (var s in spots) if (Vector2.Distance(new Vector2(s.p.x, s.p.z), new Vector2(x, z)) < r) return true;
-        return false;
+        if (gapHalf > 0) { WallRun(parent, a, -gapHalf, fixedC, alongX); WallRun(parent, gapHalf, b, fixedC, alongX); }
+        else WallRun(parent, a, b, fixedC, alongX);
     }
 
-    static void DecorateHouse(Transform house, Transform parent, int n)
+    static void WallRun(Transform parent, float s, float e, float fixedC, bool alongX)
     {
-        // 집 앞(앞쪽 = 집의 -forward 쪽이라고 가정) 마당 소품
-        Vector3 fwd = house.forward, right = house.right, c = house.position;
-        switch (n % 5)
+        int n = Mathf.CeilToInt((e - s) / WallLen);
+        float step = (e - s) / n; // 조각끼리 살짝 겹치게 해서 틈이 없게
+        for (int k = 0; k < n; k++)
         {
-            case 0:
-                Place("Jangdokdae", "Jangdok", c + right * 6 - fwd * 2, house.eulerAngles.y, 2f, parent, true, 0f);
-                Place("SaripGate", "SaripGate", c - fwd * 8, house.eulerAngles.y, 2.2f, parent, true, 0f);
-                break;
-            case 1:
-                Place("Clothesline", "Clothesline", c - right * 6 - fwd * 4, house.eulerAngles.y + 90, 4f, parent, false, 0f);
-                Place("Jige", "Jige", c + right * 4.5f - fwd * 3, house.eulerAngles.y + 30, 1.6f, parent, false, 0f);
-                break;
-            case 2:
-                Place("StrawStack", "Straw", c + right * 7, 0, 2.4f, parent, true, 0f);
-                Place("Cart", "Cart", c - right * 5 - fwd * 5, house.eulerAngles.y + 70, 2.6f, parent, true, 0f);
-                break;
-            case 3:
-                Place("Pyeongsang", "Pyeongsang", c - fwd * 5 + right * 3, house.eulerAngles.y, 2.2f, parent, true, 0f);
-                Place("Jangdokdae", "Jangdok", c - right * 6, 0, 1.8f, parent, true, 0f);
-                break;
-            default:
-                Place("SaripGate", "SaripGate", c - fwd * 8, house.eulerAngles.y, 2.2f, parent, true, 0f);
-                Place("Clothesline", "Clothesline", c + right * 6 - fwd * 3, house.eulerAngles.y + 90, 4f, parent, false, 0f);
-                break;
+            float c = s + (k + 0.5f) * step;
+            var pos = alongX ? new Vector3(c, 0, fixedC) : new Vector3(fixedC, 0, c);
+            Place(PL + "PalaceWall.glb", "Wall", pos, alongX ? 0 : 90, WallLen, parent, true, 0.02f);
         }
     }
 }

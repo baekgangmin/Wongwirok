@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// 화면 아래 안내창 (임시 한지색. 조선풍 UI 는 7번 작업에서 교체)
+// 화면 아래 안내창: 먹색 띠 + 검붉은 글씨 (기랑해랑체)
 public class ScreenPrompt : MonoBehaviour
 {
     private Text text;
@@ -22,7 +22,7 @@ public class ScreenPrompt : MonoBehaviour
         var prt = (RectTransform)panel.transform;
         prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.22f);
         prt.sizeDelta = new Vector2(460, 64);
-        panel.GetComponent<Image>().color = new Color(0.93f, 0.88f, 0.76f, 0.88f);
+        panel.GetComponent<Image>().color = new Color(0.03f, 0.02f, 0.02f, 0.72f);
 
         var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
         textGo.transform.SetParent(panel.transform, false);
@@ -31,10 +31,10 @@ public class ScreenPrompt : MonoBehaviour
         trt.offsetMin = trt.offsetMax = Vector2.zero;
         var p = root.AddComponent<ScreenPrompt>();
         p.text = textGo.GetComponent<Text>();
-        p.text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        p.text.fontSize = 28;
+        p.text.font = Resources.Load<Font>("Fonts/KirangHaerang-Regular");
+        p.text.fontSize = 34;
         p.text.alignment = TextAnchor.MiddleCenter;
-        p.text.color = new Color(0.18f, 0.1f, 0.06f, 1f);
+        p.text.color = new Color(0.62f, 0.08f, 0.07f, 1f);
         root.SetActive(false);
         return p;
     }

@@ -96,10 +96,10 @@ public static class HumanWorldBuilder
         SetupDaylight();
 
         // 3) 지형: 연못 지형(복제본)의 겉흙을 풀밭으로, 주변에 마을/언덕 지형 추가
-        // 실사 바닥 (Poly Haven CC0): 풀 / 마당 모래 / 박석 / 흙 / 성긴 풀
-        var grass = PHLayer("grass_ground", 6f, new Color(0.78f, 0.95f, 0.62f, 1f)); // 누런 풀 → 조금 푸르게
-        var dirt = PHLayer("dirt", 4f);
-        var groundLayers = new[] { grass, PHLayer("gravelly_sand", 3f, new Color(0.93f, 0.9f, 0.88f, 1f)), PHLayer("rock_tile_floor", 3f), dirt }; // URP 지형은 한 번에 4종까지만 그려서 4종으로 제한
+        // 수묵 담채 바닥 (바르코3D 그림 → inkify 로 톤 정리): 풀 / 마당 마사토 / 박석 / 흙
+        var grass = PaintedLayer("Grass_ink", 8f);
+        var dirt = PaintedLayer("Earth_ink", 7f);
+        var groundLayers = new[] { grass, PaintedLayer("Courtyard_Sand_ink", 6f), PaintedLayer("Bakseok_ink", 4f), dirt }; // URP 지형은 한 번에 4종까지만 그려서 4종으로 제한
         var lakebed = AssetDatabase.LoadAssetAtPath<TerrainLayer>(GenDir + "LakebedLayer.terrainlayer");
         DeepenLake(lake, -1.32f, 2.4f);
         RepaintLakeTerrain(lake, grass, dirt, lakebed);
@@ -311,6 +311,19 @@ public static class HumanWorldBuilder
         return AssetDatabase.LoadAssetAtPath<Texture2D>(p);
     }
 
+    static TerrainLayer PaintedLayer(string n, float tile)
+    {
+        string path = GenDir + "Ink_" + n + ".terrainlayer";
+        var layer = AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+        if (layer == null) { layer = new TerrainLayer(); AssetDatabase.CreateAsset(layer, path); }
+        layer.diffuseTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Environment/Painted/Ground/" + n + ".png");
+        layer.normalMapTexture = null;
+        layer.tileSize = new Vector2(tile, tile);
+        layer.smoothness = 0f;
+        EditorUtility.SetDirty(layer);
+        return layer;
+    }
+
     static TerrainLayer PHLayer(string n, float tile) => PHLayer(n, tile, Color.white);
     static TerrainLayer PHLayer(string n, float tile, Color tint)
     {
@@ -498,10 +511,10 @@ public static class HumanWorldBuilder
             // 물가 가까운 나무는 버드나무, 바깥쪽은 소나무/느티나무
             float distToLake = Vector2.Distance(new Vector2(p.x, p.z), new Vector2(0, 45));
             string asset; float s;
-            if (distToLake < 62) { asset = willow; s = R(10f, 13f); }
-            else if (i % 3 != 0) { asset = "Zelkova"; s = R(11f, 14f); }
-            else { asset = "Pine"; s = R(11f, 15f); }
-            var tr = Place(asset, "Tree_" + i, p, R(0, 360), s, lakeRoot, false, 0.02f);
+            if (distToLake < 62) { asset = "willow"; s = R(10f, 13f); }
+            else if (i % 3 != 0) { asset = "zelkova"; s = R(12f, 15f); }
+            else { asset = "pine"; s = R(11f, 14f); }
+            var tr = PlaceSprite(asset, "Tree_" + i, p, s, lakeRoot);
             TreeCollider(tr, 0.6f, 6f);
         }
         for (int i = 0; i < BossLanterns.Length; i++)
@@ -521,7 +534,7 @@ public static class HumanWorldBuilder
 
         // 선착장 옆 버드나무: 밧줄을 묶고 몸에 감은 뒤 연못 깊이 들어가면 귀의 세계로
         Vector3 treePos = new Vector3(-3f, 0, shoreZ - 5f);
-        var ropeTree = Place("Assets/VarcoAssets/Tree/Green Weeping Willow.glb", "RopeTree_Willow", treePos, 200f, 9f, lakeRoot, false, 0.02f);
+        var ropeTree = PlaceSprite("willow", "RopeTree_Willow", treePos, 9f, lakeRoot);
         if (ropeTree)
         {
             TreeCollider(ropeTree, 1.0f, 5f);
@@ -613,17 +626,102 @@ public static class HumanWorldBuilder
         {
             float x = R(-158, 158), zz = R(-272, -40);
             if (Mathf.Abs(x) < CoreX + 4 && zz > CoreSouth - 4) continue;
-            string kind = (i % 5 == 0) ? "Pine" : (i % 2 == 0 ? "Zelkova" : "Assets/VarcoAssets/Tree/Green Weeping Willow.glb");
-            var t = Place(kind, "Tree", new Vector3(x, 0, zz), R(0, 360), R(10, 14), v, false, 0.02f);
+            string kind = (i % 5 == 0) ? "pine" : (i % 2 == 0 ? "zelkova" : "willow");
+            var t = PlaceSprite(kind, "Tree", new Vector3(x, 0, zz), R(10, 14), v);
             TreeCollider(t, 0.6f, 6f);
         }
         for (int i = 0; i < 50; i++)
         {
             float x = R(-158, 158), zz = R(-34, 200);
             if (Mathf.Abs(x) < 84 && zz < 128) continue;
-            var t = Place(i % 3 == 0 ? "Pine" : "Zelkova", "HillTree", new Vector3(x, 0, zz), R(0, 360), R(11, 16), v, false, 0.02f);
+            var t = PlaceSprite(i % 3 == 0 ? "pine" : "zelkova", "HillTree", new Vector3(x, 0, zz), R(11, 16), v);
             TreeCollider(t, 0.6f, 6f);
         }
+
+        // 풀 덤불: 담 밑(안쪽), 연못가
+        for (int i = 0; i < 160; i++)
+        {
+            Vector3 p;
+            if (i < 110)
+            {
+                int side = i % 4; float t = R(0, 1);
+                p = side == 0 ? new Vector3(-WallX + R(1, 3), 0, Mathf.Lerp(WallS + 3, WallN - 3, t))
+                  : side == 1 ? new Vector3(WallX - R(1, 3), 0, Mathf.Lerp(WallS + 3, WallN - 3, t))
+                  : side == 2 ? new Vector3(Mathf.Lerp(-WallX + 3, WallX - 3, t), 0, WallN - R(1, 3))
+                  : new Vector3(Mathf.Lerp(-WallX + 3, WallX - 3, t), 0, WallS + R(1, 3));
+                if (Mathf.Abs(p.x) < 8) continue; // 문 앞은 비움
+            }
+            else
+            {
+                float a = R(0, Mathf.PI * 2); p = new Vector3(Mathf.Cos(a) * R(46, 58), 0, 45 + Mathf.Sin(a) * R(42, 54));
+                if (Ground(p.x, p.z) < -1.2f) continue; // 물속 제외
+            }
+            PlaceSprite("grass", "Grass", p, R(0.8f, 1.5f), v, 0.12f);
+        }
+
+        // 먼 배경: 수묵 산줄기 두 겹 + 바위 절벽 (궁궐·연못 가운데를 둘러쌈)
+        var bg = new GameObject("HW_Backdrop").transform; bg.SetParent(root);
+        Vector3 center = new Vector3(0, 0, -40);
+        for (int i = 0; i < 14; i++)
+        {
+            float a = i / 14f * Mathf.PI * 2 + 0.2f;
+            var far = PlaceSprite("mountains", "FarMountains", center + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 430, R(130, 160), bg, 0f, 0.75f);
+            if (far) far.transform.position = new Vector3(far.transform.position.x, -25, far.transform.position.z);
+        }
+        for (int i = 0; i < 12; i++)
+        {
+            float a = i / 12f * Mathf.PI * 2;
+            var near = PlaceSprite("mountains", "NearMountains", center + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 320, R(80, 100), bg, 0f);
+            if (near) near.transform.position = new Vector3(near.transform.position.x, -20, near.transform.position.z);
+        }
+        for (int i = 0; i < 10; i++)
+        {
+            float a = R(0, Mathf.PI * 2);
+            var c = PlaceSprite("cliff", "Cliff", center + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * R(230, 270), R(55, 80), bg, 0f);
+            if (c) c.transform.position = new Vector3(c.transform.position.x, -12, c.transform.position.z);
+        }
+    }
+
+    // ---------------- 2D 그림판 (나무·풀·먼 산) ----------------
+    const string SpriteDir = "Assets/Environment/Painted/Sprites/";
+    static readonly Dictionary<string, Material> spriteMats = new Dictionary<string, Material>();
+
+    // 그림판 재질 (그림마다 1개, 흐림 정도별로 따로)
+    static Material SpriteMat(string n, float sway, float fade)
+    {
+        string key = n + "_" + fade.ToString("0.00");
+        if (spriteMats.TryGetValue(key, out var m) && m) return m;
+        string tp = SpriteDir + n + ".png";
+        var imp = (TextureImporter)AssetImporter.GetAtPath(tp);
+        if (imp != null && (!imp.alphaIsTransparency || imp.wrapMode != TextureWrapMode.Clamp))
+        {
+            imp.alphaIsTransparency = true; imp.wrapMode = TextureWrapMode.Clamp; imp.mipmapEnabled = true;
+            imp.SaveAndReimport();
+        }
+        string mp = SpriteDir + "M_" + key + ".mat";
+        m = AssetDatabase.LoadAssetAtPath<Material>(mp);
+        if (m == null) { m = new Material(Shader.Find("Wongwirok/InkBillboard")); AssetDatabase.CreateAsset(m, mp); }
+        m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tp));
+        m.SetFloat("_SwayAmount", sway);
+        m.SetColor("_Tint", Color.Lerp(Color.white, new Color(0.88f, 0.9f, 0.94f), fade)); // 멀수록 옅게
+        m.SetFloat("_Cutoff", 0.4f);
+        EditorUtility.SetDirty(m);
+        spriteMats[key] = m;
+        return m;
+    }
+
+    // 높이 height(m) 의 그림판을 땅 위에 세운다 (가로는 그림 비율대로)
+    static GameObject PlaceSprite(string n, string name, Vector3 pos, float height, Transform parent, float sway = -1, float fade = 0)
+    {
+        var mat = SpriteMat(n, sway < 0 ? height * 0.025f : sway, fade);
+        var tex = mat.GetTexture("_BaseMap");
+        if (tex == null) { Debug.LogWarning("그림 없음: " + n); return null; }
+        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer), typeof(InkBillboardSprite));
+        go.transform.SetParent(parent);
+        go.transform.position = new Vector3(pos.x, Ground(pos.x, pos.z) - 0.1f, pos.z);
+        go.transform.localScale = new Vector3(height * tex.width / tex.height * R(0.9f, 1.1f), height, 1);
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        return go;
     }
 
     // a~b 구간에 담장을 잇는다. alongX 면 z=fixedC 인 동서 담, 아니면 x=fixedC 인 남북 담. 0 을 중심으로 ±gapHalf 는 문 자리로 비움

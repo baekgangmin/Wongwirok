@@ -144,8 +144,9 @@ public static class HumanWorldBuilder
     static void SetupDaylight()
     {
         RenderSettings.skybox = InkSkyMat();
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
-        RenderSettings.ambientIntensity = 1f;
+        // 그림자 속이 새까맣지 않게: 하늘 셰이더가 주변광을 거의 못 만들어서 옅은 쪽빛 단색으로 고정
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.55f, 0.6f, 0.7f);
         DynamicGI.UpdateEnvironment();
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
@@ -157,6 +158,7 @@ public static class HumanWorldBuilder
             l.color = new Color(1f, 0.95f, 0.86f);
             l.intensity = 1.6f;
             l.shadows = LightShadows.Soft;
+            l.shadowStrength = 0.5f; // 그림자는 한 톤 낮은 색 정도로
             l.transform.rotation = Quaternion.Euler(48f, 330f, 0f);
         }
         var fogGo = new GameObject("HW_HeightFogOverride");
@@ -709,7 +711,7 @@ public static class HumanWorldBuilder
         m.SetFloat("_SwayAmount", sway);
         m.SetColor("_Tint", Color.Lerp(Color.white, new Color(0.88f, 0.9f, 0.94f), fade)); // 멀수록 옅게
         m.SetFloat("_Cutoff", 0.4f);
-        m.SetFloat("_OutlinePx", n == "mountains" || n == "cliff" ? 0f : 5f); // 나무·풀 바깥 윤곽 먹선 (먼 산은 제외)
+        m.SetFloat("_OutlinePx", n == "mountains" || n == "cliff" || n.StartsWith("cherry") ? 0f : 5f); // 나무·풀 바깥 윤곽 먹선 (먼 산·벚꽃나무는 그림에 먹선이 있어 제외)
         EditorUtility.SetDirty(m);
         spriteMats[key] = m;
         return m;
@@ -718,6 +720,7 @@ public static class HumanWorldBuilder
     // 높이 height(m) 의 그림판을 땅 위에 세운다 (가로는 그림 비율대로)
     static GameObject PlaceSprite(string n, string name, Vector3 pos, float height, Transform parent, float sway = -1, float fade = 0)
     {
+        if (n == "willow" || n == "zelkova") n = "cherry_" + (1 + (int)R(0, 2.999f)); // 버드나무·느티나무 자리 → 벚꽃나무 3종 랜덤 (소나무는 그대로)
         var mat = SpriteMat(n, sway < 0 ? height * 0.025f : sway, fade);
         var tex = mat.GetTexture("_BaseMap");
         if (tex == null) { Debug.LogWarning("그림 없음: " + n); return null; }

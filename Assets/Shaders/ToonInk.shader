@@ -48,7 +48,7 @@ Shader "Wongwirok/ToonInk"
                 half3 alb = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).rgb * _BaseColor.rgb;
                 float3 n = normalize(i.n);
                 Light l = GetMainLight(TransformWorldToShadowCoord(i.ws));
-                float lit = saturate(dot(n, l.direction) * 0.5 + 0.5) * lerp(0.35, 1, l.shadowAttenuation);
+                float lit = saturate(dot(n, l.direction) * 0.5 + 0.5) * lerp(0.65, 1, l.shadowAttenuation);
                 // 3단계 띠 (경계만 살짝 부드럽게)
                 float hi = smoothstep(0.62, 0.66, lit), mid = smoothstep(0.38, 0.42, lit);
                 half3 tint = lerp(_ShadowColor.rgb, lerp(_MidColor.rgb, 1, hi), mid);

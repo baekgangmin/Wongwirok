@@ -31,7 +31,7 @@ Material:
     m_Floats:
     - _Cutoff: 0.4
     - _OutlinePx: 5
-    - _SwayAmount: 0.25615284
+    - _SwayAmount: 0.30009982
     - _SwaySpeed: 1.2
     m_Colors:
     - _InkColor: {r: 0.079999976, g: 0.079999976, b: 0.089999996, a: 1}

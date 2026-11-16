@@ -30,9 +30,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.4
+    - _OutlinePx: 5
     - _SwayAmount: 0.25615284
     - _SwaySpeed: 1.2
     m_Colors:
+    - _InkColor: {r: 0.079999976, g: 0.079999976, b: 0.089999996, a: 1}
     - _ShadowTint: {r: 0.7, g: 0.72, b: 0.8, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

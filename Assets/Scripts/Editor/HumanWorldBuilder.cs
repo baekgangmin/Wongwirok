@@ -97,8 +97,8 @@ public static class HumanWorldBuilder
 
         // 3) 지형: 연못 지형(복제본)의 겉흙을 풀밭으로, 주변에 마을/언덕 지형 추가
         // 수묵 담채 바닥 (바르코3D 그림 → inkify 로 톤 정리): 풀 / 마당 마사토 / 박석 / 흙
-        var grass = PaintedLayer("Grass_ink", 8f);
-        var dirt = PaintedLayer("Earth_ink", 7f);
+        var grass = PaintedLayer("Moss_ink", 8f);      // 이끼 낀 녹색 땅
+        var dirt = PaintedLayer("StonePath_ink", 7f);  // 디딤돌 + 운문 길
         var groundLayers = new[] { grass, PaintedLayer("Courtyard_Sand_ink", 6f), PaintedLayer("Bakseok_ink", 4f), dirt }; // URP 지형은 한 번에 4종까지만 그려서 4종으로 제한
         var lakebed = AssetDatabase.LoadAssetAtPath<TerrainLayer>(GenDir + "LakebedLayer.terrainlayer");
         DeepenLake(lake, -1.32f, 2.4f);
@@ -130,7 +130,7 @@ public static class HumanWorldBuilder
         player.transform.rotation = Quaternion.identity;
         // 손에 든 나뭇가지·검도 같은 그림체로 (glb 마다 재질 따로)
         foreach (var t in player.GetComponentsInChildren<Transform>(true))
-            if (t.parent != null && t.parent.name == "WeaponMount" && PrefabUtility.IsAnyPrefabInstanceRoot(t.gameObject))
+            if (t.GetComponentsInParent<Transform>(true).Any(a => a.name == "WeaponMount") && PrefabUtility.IsAnyPrefabInstanceRoot(t.gameObject))
                 Toonify(t.gameObject, PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(t.gameObject), 0.004f);
         var cam = GameObject.Find("Main Camera");
         cam.transform.position = player.transform.position + new Vector3(0, 3, -6);
@@ -656,7 +656,11 @@ public static class HumanWorldBuilder
                 float a = R(0, Mathf.PI * 2); p = new Vector3(Mathf.Cos(a) * R(46, 58), 0, 45 + Mathf.Sin(a) * R(42, 54));
                 if (Ground(p.x, p.z) < -1.2f) continue; // 물속 제외
             }
-            PlaceSprite("grass", "Grass", p, R(0.8f, 1.5f), v, 0.12f);
+            int k = i % 4; // 풀 4종 번갈아: 기존 풀 / 뾰족 덤불 / 덩굴 / 낮은 풀포기
+            if (k == 0) PlaceSprite("grass", "Grass", p, R(0.8f, 1.5f), v, 0.12f);
+            else if (k == 1) PlaceSprite("grass_spiky", "Grass", p, R(1.0f, 1.6f), v, 0.12f);
+            else if (k == 2) PlaceSprite("plant_vine", "Grass", p, R(1.2f, 2.0f), v, 0.1f);
+            else PlaceSprite("grass_tuft", "Grass", p, R(0.35f, 0.55f), v, 0.05f);
         }
 
         // 먼 배경: 수묵 산줄기 두 겹 + 바위 절벽 (궁궐·연못 가운데를 둘러쌈)
@@ -705,6 +709,7 @@ public static class HumanWorldBuilder
         m.SetFloat("_SwayAmount", sway);
         m.SetColor("_Tint", Color.Lerp(Color.white, new Color(0.88f, 0.9f, 0.94f), fade)); // 멀수록 옅게
         m.SetFloat("_Cutoff", 0.4f);
+        m.SetFloat("_OutlinePx", n == "mountains" || n == "cliff" ? 0f : 5f); // 나무·풀 바깥 윤곽 먹선 (먼 산은 제외)
         EditorUtility.SetDirty(m);
         spriteMats[key] = m;
         return m;

@@ -10,6 +10,8 @@ Shader "Wongwirok/InkBillboard"
         _SwayAmount ("Sway (m)", Float) = 0.25
         _SwaySpeed ("Sway Speed", Float) = 1.2
         _ShadowTint ("Shade Tint", Color) = (0.7, 0.72, 0.8, 1)
+        _OutlinePx ("Outline Width (texels)", Float) = 0
+        _InkColor ("Outline Ink", Color) = (0.08, 0.08, 0.09, 1)
     }
     SubShader
     {
@@ -19,7 +21,7 @@ Shader "Wongwirok/InkBillboard"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         CBUFFER_START(UnityPerMaterial)
-            float4 _BaseMap_ST; half4 _Tint, _ShadowTint; float _Cutoff, _SwayAmount, _SwaySpeed;
+            float4 _BaseMap_ST, _BaseMap_TexelSize; half4 _Tint, _ShadowTint, _InkColor; float _Cutoff, _SwayAmount, _SwaySpeed, _OutlinePx;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
 
@@ -62,6 +64,17 @@ Shader "Wongwirok/InkBillboard"
                 clip(c.a - _Cutoff);
                 Light l = GetMainLight(TransformWorldToShadowCoord(i.ws));
                 half3 col = c.rgb * lerp(_ShadowTint.rgb, 1, step(0.5, l.shadowAttenuation)); // 그림자 속은 한 단계만 어둡게
+                // 바깥 윤곽 먹선: 주변 8방향 중 하나라도 투명이면 가장자리
+                if (_OutlinePx > 0)
+                {
+                    float2 o = _BaseMap_TexelSize.xy * _OutlinePx; half edge = 1;
+                    [unroll] for (int k = 0; k < 8; k++)
+                    {
+                        float a = k * 0.7854;
+                        edge = min(edge, SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv + float2(cos(a), sin(a)) * o).a);
+                    }
+                    col = lerp(col, _InkColor.rgb, step(edge, _Cutoff));
+                }
                 return half4(MixFog(col, i.fog), 1);
             }
             ENDHLSL

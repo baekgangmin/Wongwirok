@@ -12,6 +12,7 @@ Shader "Wongwirok/InkBillboard"
         _ShadowTint ("Shade Tint", Color) = (0.7, 0.72, 0.8, 1)
         _OutlinePx ("Outline Width (texels)", Float) = 0
         _InkColor ("Outline Ink", Color) = (0.08, 0.08, 0.09, 1)
+        _OutlineVary ("Outline Brush Variation", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -21,7 +22,7 @@ Shader "Wongwirok/InkBillboard"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         CBUFFER_START(UnityPerMaterial)
-            float4 _BaseMap_ST, _BaseMap_TexelSize; half4 _Tint, _ShadowTint, _InkColor; float _Cutoff, _SwayAmount, _SwaySpeed, _OutlinePx;
+            float4 _BaseMap_ST, _BaseMap_TexelSize; half4 _Tint, _ShadowTint, _InkColor; float _Cutoff, _SwayAmount, _SwaySpeed, _OutlinePx, _OutlineVary;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
 
@@ -67,12 +68,19 @@ Shader "Wongwirok/InkBillboard"
                 // 바깥 윤곽 먹선: 주변 8방향 중 하나라도 투명이면 가장자리
                 if (_OutlinePx > 0)
                 {
-                    float2 o = _BaseMap_TexelSize.xy * _OutlinePx; half edge = 1;
+                    // 붓 강약(_OutlineVary=1): 아래쪽 가장자리는 굵게·위쪽은 가늘게, 얼룩 무늬로 굵기가 들쭉날쭉하고 군데군데 끊김
+                    float2 cell = floor(i.uv * 14), f = frac(i.uv * 14); f = f * f * (3 - 2 * f);
+                    #define HSH(p) frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453)
+                    float nz = lerp(lerp(HSH(cell), HSH(cell + float2(1, 0)), f.x), lerp(HSH(cell + float2(0, 1)), HSH(cell + 1), f.x), f.y);
+                    float brush = lerp(1, smoothstep(0.18, 0.35, nz) * (0.4 + 1.4 * nz), _OutlineVary);
+                    float2 o = _BaseMap_TexelSize.xy * _OutlinePx * brush; half edge = 1;
                     [unroll] for (int k = 0; k < 8; k++)
                     {
                         float a = k * 0.7854;
-                        edge = min(edge, SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv + float2(cos(a), sin(a)) * o).a);
+                        float down = lerp(1, sin(a) < -0.1 ? 1.8 : (sin(a) > 0.1 ? 0.35 : 1), _OutlineVary);
+                        edge = min(edge, SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv + float2(cos(a), sin(a)) * o * down).a);
                     }
+                    edge = brush > 0.01 ? edge : 1;
                     col = lerp(col, _InkColor.rgb, step(edge, _Cutoff));
                 }
                 return half4(MixFog(col, i.fog), 1);

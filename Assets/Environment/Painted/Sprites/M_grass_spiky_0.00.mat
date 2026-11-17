@@ -30,7 +30,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.4
-    - _OutlinePx: 5
+    - _OutlinePx: 4
+    - _OutlineVary: 1
     - _SwayAmount: 0.12
     - _SwaySpeed: 1.2
     m_Colors:

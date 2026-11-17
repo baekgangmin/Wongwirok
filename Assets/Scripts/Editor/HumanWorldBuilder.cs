@@ -711,7 +711,8 @@ public static class HumanWorldBuilder
         m.SetFloat("_SwayAmount", sway);
         m.SetColor("_Tint", Color.Lerp(Color.white, new Color(0.88f, 0.9f, 0.94f), fade)); // 멀수록 옅게
         m.SetFloat("_Cutoff", 0.4f);
-        m.SetFloat("_OutlinePx", n == "mountains" || n == "cliff" || n.StartsWith("cherry") ? 0f : 5f); // 나무·풀 바깥 윤곽 먹선 (먼 산·벚꽃나무는 그림에 먹선이 있어 제외)
+        m.SetFloat("_OutlinePx", n == "mountains" || n == "cliff" || n.StartsWith("cherry") || n.StartsWith("t_") ? 0f : 4f); // 풀 바깥 윤곽 먹선 (그림 픽셀 기준이라 작은 그림(약 300px)에 맞춤) (먼 산·나무는 그림에 먹선이 있어 제외)
+        m.SetFloat("_OutlineVary", 1f); // 붓 강약: 아래 굵게·위 가늘게·군데군데 끊김
         EditorUtility.SetDirty(m);
         spriteMats[key] = m;
         return m;
@@ -720,7 +721,11 @@ public static class HumanWorldBuilder
     // 높이 height(m) 의 그림판을 땅 위에 세운다 (가로는 그림 비율대로)
     static GameObject PlaceSprite(string n, string name, Vector3 pos, float height, Transform parent, float sway = -1, float fade = 0)
     {
-        if (n == "willow" || n == "zelkova") n = "cherry_" + (1 + (int)R(0, 2.999f)); // 버드나무·느티나무 자리 → 벚꽃나무 3종 랜덤 (소나무는 그대로)
+        // 시험: 사용자 그림 나무 4종 (느티나무 자리는 느티나무·벚꽃 반반)
+        if (n == "pine") n = "t_pine";
+        else if (n == "willow") n = "t_willow";
+        else if (n == "zelkova") n = R(0, 1) < 0.5f ? "t_zelkova" : "t_cherry";
+        else if ((n == "plant_vine" || n == "grass_tuft") && R(0, 1) < 0.5f) n += "_b"; // 덩굴·풀포기는 그림 2종 랜덤
         var mat = SpriteMat(n, sway < 0 ? height * 0.025f : sway, fade);
         var tex = mat.GetTexture("_BaseMap");
         if (tex == null) { Debug.LogWarning("그림 없음: " + n); return null; }

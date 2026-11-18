@@ -11,6 +11,7 @@ public class SleeveSway : MonoBehaviour
     [Range(0, 90)] public float maxAngle = 35f;     // 최대로 벌어지는 각도
     public Vector3 tip = new Vector3(0, -0.2f, 0);  // 흔들리는 끝점 (이 뼈 기준, 설정 때 소매 끝 쪽으로 잡아 둠)
     [Range(0, 1)] public float hangDown = 1f;       // 팔을 비틀어도(팔꿈치 돌리기·손목 비틀기) 소매는 아래로 늘어진 기본 방향을 유지하는 정도
+    [Range(0, 90)] public float maxHang = 40f;      // 위 보정의 최대 각도. 크게 돌리면 소매 살이 찢어지듯 늘어남 (뼈 하나로 비트는 한계)
 
     private Quaternion rest;
     private Vector3 axisLocal;                      // 팔꿈치 → 손목 방향 (이 뼈 기준)
@@ -35,7 +36,7 @@ public class SleeveSway : MonoBehaviour
             Vector3 ax = transform.TransformDirection(axisLocal).normalized;
             Vector3 p = Vector3.ProjectOnPlane(transform.TransformVector(tip), ax), d = Vector3.ProjectOnPlane(Vector3.down, ax);
             if (p.sqrMagnitude > 1e-8f && d.sqrMagnitude > 1e-8f)
-                transform.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(p, d, ax) * hangDown, ax) * transform.rotation;
+                transform.rotation = Quaternion.AngleAxis(Mathf.Clamp(Vector3.SignedAngle(p, d, ax) * hangDown, -maxHang, maxHang), ax) * transform.rotation;
         }
         Vector3 target = transform.TransformPoint(tip);
         float dt = Mathf.Min(Time.deltaTime, 1f / 30f);

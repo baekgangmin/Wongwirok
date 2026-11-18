@@ -68,7 +68,7 @@ Shader "Wongwirok/ToonInk"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
-            struct A { float4 pos : POSITION; float3 n : NORMAL; };
+            struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv3 : TEXCOORD3; };
             struct V { float4 pos : SV_POSITION; float fog : TEXCOORD0; };
             float H(float3 p) { return frac(sin(dot(p, float3(12.9898, 78.233, 37.719))) * 43758.5453); }
             V vert(A i)
@@ -78,6 +78,8 @@ Shader "Wongwirok/ToonInk"
                 float3 n = normalize(TransformObjectToWorldNormal(i.n));
                 // 붓선처럼 굵기를 위치마다 들쭉날쭉하게
                 float w = _OutlineWidth * (0.6 + 0.8 * H(floor(ws * 2)));
+                // UV4.x = 외곽선 줄이기 (1 = 없음). 값이 없는 모델은 0 이라 그대로. 소매 속 손목 외곽선이 소매를 뚫고 나오지 않게
+                w *= 1 - saturate(i.uv3.x);
                 ws += n * w;
                 o.pos = TransformWorldToHClip(ws); o.fog = ComputeFogFactor(o.pos.z); return o;
             }

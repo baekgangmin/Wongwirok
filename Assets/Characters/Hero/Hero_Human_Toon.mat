@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: HeroInk_AccuRig2_Toon
+  m_Name: Hero_Human_Toon
   m_Shader: {fileID: 4800000, guid: f582cf3d4f576c8429d57dcac5c96298, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,7 +24,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 68d45bb8463e97d4eae96a612e4a5d48, type: 3}
+        m_Texture: {fileID: 2800000, guid: 211f39d163c05c046a9e4ac18f4c91f7, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []

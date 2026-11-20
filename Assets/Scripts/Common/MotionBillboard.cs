@@ -8,11 +8,23 @@ public class MotionBillboard : MonoBehaviour
     [SerializeField] private Vector2 imageHeadDirection = new Vector2(-1f, -1f);
     [Tooltip("손그림 떨림 (도)")]
     [SerializeField] private float boilAngle = 4f;
+    [Header("플립북 (칸이 1이면 그림 한 장)")]
+    [SerializeField] private int columns = 1;
+    [SerializeField] private int[] sequence = { 0, 1, 2, 1 };
+    [SerializeField] private float framesPerSecond = 12f;
 
     private Vector3 lastPos;
     private float roll, boil, nextBoil;
+    private Renderer rend;
+    private MaterialPropertyBlock block;
+    private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
 
-    private void OnEnable() => lastPos = transform.position;
+    private void OnEnable()
+    {
+        lastPos = transform.position;
+        rend = GetComponentInChildren<Renderer>();   // 그림 판이 자식이어도 됨 (머리를 기준점에 두려고 판을 옮겨 둘 때)
+        block = new MaterialPropertyBlock();
+    }
 
     private void LateUpdate()
     {
@@ -31,6 +43,14 @@ public class MotionBillboard : MonoBehaviour
             boil = Random.Range(-boilAngle, boilAngle);
         }
         // 판이 카메라 반대쪽을 보게 두면 그림이 좌우 뒤집혀 보이지 않음
-        transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position, cam.transform.up) * Quaternion.Euler(0f, 0f, -(roll + boil));
+        transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position, cam.transform.up) * Quaternion.Euler(0f, 0f, roll + boil);   // 카메라 반대쪽을 보는 판이라 +각도가 화면에서 반시계
+
+        if (columns > 1 && rend != null && sequence != null && sequence.Length > 0)
+        {
+            int frame = Mathf.Clamp(sequence[Mathf.FloorToInt(Time.time * framesPerSecond) % sequence.Length], 0, columns - 1);
+            rend.GetPropertyBlock(block);
+            block.SetVector(BaseMapStId, new Vector4(1f / columns, 1f, (float)frame / columns, 0f));
+            rend.SetPropertyBlock(block);
+        }
     }
 }

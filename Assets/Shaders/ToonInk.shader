@@ -71,13 +71,20 @@ Shader "Wongwirok/ToonInk"
             struct A { float4 pos : POSITION; float3 n : NORMAL; float2 uv3 : TEXCOORD3; };
             struct V { float4 pos : SV_POSITION; float fog : TEXCOORD0; };
             float H(float3 p) { return frac(sin(dot(p, float3(12.9898, 78.233, 37.719))) * 43758.5453); }
+            float VNoise(float3 p)
+            {
+                float3 c = floor(p), f = frac(p); f = f * f * (3 - 2 * f);
+                return lerp(lerp(lerp(H(c), H(c + float3(1,0,0)), f.x), lerp(H(c + float3(0,1,0)), H(c + float3(1,1,0)), f.x), f.y),
+                            lerp(lerp(H(c + float3(0,0,1)), H(c + float3(1,0,1)), f.x), lerp(H(c + float3(0,1,1)), H(c + float3(1,1,1)), f.x), f.y), f.z);
+            }
             V vert(A i)
             {
                 V o;
                 float3 ws = TransformObjectToWorld(i.pos.xyz);
                 float3 n = normalize(TransformObjectToWorldNormal(i.n));
-                // 붓선처럼 굵기를 위치마다 들쭉날쭉하게
-                float w = _OutlineWidth * (0.6 + 0.8 * H(floor(ws * 2)));
+                // 붓선처럼 굵기가 부드럽게 굵어졌다 가늘어짐 (큰 붓 흐름 + 잔떨림)
+                float brush = VNoise(ws * 0.8 + 11.0) * 0.6 + VNoise(ws * 3.0) * 0.4;
+                float w = _OutlineWidth * (0.35 + 1.3 * brush);
                 // UV4.x = 외곽선 줄이기 (1 = 없음). 값이 없는 모델은 0 이라 그대로. 소매 속 손목 외곽선이 소매를 뚫고 나오지 않게
                 w *= 1 - saturate(i.uv3.x);
                 ws += n * w;

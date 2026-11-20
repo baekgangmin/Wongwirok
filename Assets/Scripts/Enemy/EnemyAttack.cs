@@ -34,6 +34,30 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private Color telegraphEffectColor = new Color(1f, 0.1f, 0.05f, 1f);
     [SerializeField] private HumanBodyBones telegraphHand = HumanBodyBones.RightHand;
 
+    [Header("할퀴기 그림 (2D 이펙트)")]
+    [Tooltip("할퀴는 순간 앞에 잠깐 띄우는 그림 재질 (비우면 없음)")]
+    [SerializeField] private Material slashMaterial;
+    [SerializeField] private float slashSize = 2.2f;
+    [SerializeField] private float slashLifetime = 0.35f;
+    [Tooltip("공격 판정 시작 뒤 그림이 뜨기까지 (팔을 휘두르는 순간에 맞춤)")]
+    [SerializeField] private float slashDelay = 0.1f;
+    [Tooltip("먹 방울·얼룩 색 (어두운 배경에서도 보이게)")]
+    [SerializeField] private Color inkColor = new Color(0.32f, 0.03f, 0.04f, 1f);
+
+    [Header("주인공이 맞았을 때 (이 잡몹 모양)")]
+    [Tooltip("먹과 섞여 튀는 두 번째 색 (물귀신은 탁한 연못물)")]
+    [SerializeField] private Color hitSecondColor = new Color(0.28f, 0.32f, 0.14f, 1f);
+    [Tooltip("주인공 몸에 그어지는 상처 그림 (비우면 기본 할퀸 자국)")]
+    [SerializeField] private Material hitMarkMaterial;
+    [Tooltip("맞은 순간 화면 가장자리에 번쩍이는 테두리 그림 (비우면 색만)")]
+    [SerializeField] private Texture hitFrameTexture;
+    [Tooltip("할퀼 때 튀는 먹 방울 (비우면 없음)")]
+    [SerializeField] private ParticleSystem slashSplatterPrefab;
+    [Tooltip("바닥에 잠깐 남는 먹 얼룩 재질 (비우면 없음)")]
+    [SerializeField] private Material inkStainMaterial;
+    [Tooltip("공격이 맞은 순간 화면이 멈칫하는 시간 (초, 0이면 없음)")]
+    [SerializeField] private float hitStopDuration = 0.06f;
+
     [Header("References")]
     [SerializeField] private Transform player;
     [SerializeField] private Renderer targetRenderer;
@@ -53,6 +77,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     private EnemyAnimationDriver animationDriver;
     private Animator animator;
     private ParticleSystem activeTelegraph;
+    private PlayerHitFeedback playerHitFeedback;
 
     private void Awake()
     {
@@ -74,6 +99,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         {
             playerMovement = player.GetComponent<PlayerMovement>();
             playerHealth = player.GetComponent<PlayerHealth>();
+            playerHitFeedback = player.GetComponent<PlayerHitFeedback>();
         }
     }
 
@@ -127,6 +153,8 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         StopTelegraphEffect();
 
         IsAttackActive = true;
+        if (slashMaterial != null)
+            StartCoroutine(SlashRoutine());
         yield return new WaitForSeconds(activeDuration);
         IsAttackActive = false;
 
@@ -146,13 +174,16 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         {
             Debug.Log($"{name}: 공격이 회피로 빗나감");
         }
-        else if (slowsPlayerInsteadOfDamage)
-        {
-            playerMovement?.ApplySlow(slowMultiplier, slowDuration);
-        }
         else
         {
-            playerHealth?.TakeDamage(attackDamage);
+            // 피해든 느려짐이든 맞은 연출은 이 잡몹 모양으로
+            playerHitFeedback?.SetNextHit(inkColor, hitSecondColor, hitMarkMaterial, slashSplatterPrefab, hitFrameTexture);
+            if (slowsPlayerInsteadOfDamage)
+                playerMovement?.ApplySlow(slowMultiplier, slowDuration);
+            else
+                playerHealth?.TakeDamage(attackDamage);
+            if (hitStopDuration > 0f && Time.timeScale >= 0.99f)
+                StartCoroutine(HitStop());
         }
 
         SetColor(baseColor);
@@ -161,6 +192,109 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         isBusy = false;
         cooldownTimer = attackCooldown;
     }
+
+    // 할퀴는 순간 몸 앞에 그림 한 장: 카메라를 보며 붓으로 긋듯 한쪽부터 펼쳐졌다가 사라지고, 먹이 튐
+    private IEnumerator SlashRoutine()
+    {
+        if (slashDelay > 0f)
+            yield return new WaitForSeconds(slashDelay);
+        Vector3 pos = transform.position + transform.forward * hitRange * 0.5f + Vector3.up * 0.6f;
+        if (slashSplatterPrefab != null)
+        {
+            var fx = Instantiate(slashSplatterPrefab, pos, Quaternion.LookRotation(transform.forward));
+            foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>())
+            {
+                var main = ps.main;
+                main.startColor = inkColor;
+            }
+            fx.Play(true);
+        }
+        if (inkStainMaterial != null)
+            StartCoroutine(InkStainRoutine(pos));
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Destroy(go.GetComponent<Collider>());
+        Destroy(go, slashLifetime);   // 잡몹이 사라져 코루틴이 멈춰도 그림은 남지 않게
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = slashMaterial;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        Texture tex = slashMaterial.mainTexture;
+        float aspect = tex != null ? (float)tex.width / tex.height : 1f;
+        var mpb = new MaterialPropertyBlock();
+        float t = 0f, nextBoil = 0f, boilRot = 0f, boilScale = 1f;
+        while (t < slashLifetime && go != null)
+        {
+            t += Time.deltaTime;
+            // 손그림 떨림: 0.05초마다 각도·크기를 살짝 바꿈
+            if (t >= nextBoil)
+            {
+                nextBoil = t + 0.05f;
+                boilRot = Random.Range(-5f, 5f);
+                boilScale = Random.Range(0.95f, 1.05f);
+            }
+            Camera cam = Camera.main;
+            if (cam != null)
+                go.transform.rotation = Quaternion.LookRotation(pos - cam.transform.position) * Quaternion.Euler(0f, 0f, 180f + boilRot);   // 그림을 화면에서 180도 돌림
+            float draw = Mathf.Clamp01(t / SlashDrawTime);   // 그어지는 정도 (그림 왼쪽부터 보임)
+            float fade = 1f - Mathf.Clamp01((t - SlashDrawTime) / (slashLifetime - SlashDrawTime));
+            float pop = draw < 1f ? 1.12f : Mathf.Lerp(1.12f, 1f, (t - SlashDrawTime) / 0.1f);   // 그은 직후 살짝 컸다가 제자리
+            float size = slashSize * pop * boilScale;
+            float width = aspect * size;
+            go.transform.position = pos + go.transform.right * width * (draw - 1f) * 0.5f;   // 왼쪽 끝은 고정
+            go.transform.localScale = new Vector3(width * Mathf.Max(draw, 0.001f), size, 1f);
+            mpb.SetVector(BaseMapStId, new Vector4(draw, 1f, 0f, 0f));
+            mpb.SetColor(BaseColorId, new Color(1f, 1f, 1f, fade));
+            mr.SetPropertyBlock(mpb);
+            yield return null;
+        }
+    }
+
+    // 떨어진 먹이 바닥에 얼룩으로 잠깐 남음
+    private IEnumerator InkStainRoutine(Vector3 pos)
+    {
+        yield return new WaitForSeconds(0.25f);   // 방울이 떨어질 즈음
+        if (!Physics.Raycast(pos + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 5f, ~0, QueryTriggerInteraction.Ignore))
+            yield break;
+        int n = Random.Range(3, 6);
+        var stains = new MeshRenderer[n];
+        for (int i = 0; i < n; i++)
+        {
+            var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Destroy(q.GetComponent<Collider>());
+            Destroy(q, 2.2f);
+            Vector3 off = transform.forward * Random.Range(0f, 1.2f) + transform.right * Random.Range(-0.6f, 0.6f);
+            q.transform.SetPositionAndRotation(hit.point + off + Vector3.up * 0.02f, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f));
+            q.transform.localScale = Vector3.one * Random.Range(0.25f, 0.7f);
+            stains[i] = q.GetComponent<MeshRenderer>();
+            stains[i].sharedMaterial = inkStainMaterial;
+            stains[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        var mpb = new MaterialPropertyBlock();
+        for (float t = 0f; t < 1.9f; t += Time.deltaTime)
+        {
+            mpb.SetColor(BaseColorId, new Color(inkColor.r, inkColor.g, inkColor.b, 0.85f * (1f - Mathf.Clamp01((t - 0.8f) / 1.1f))));
+            foreach (var s in stains)
+                if (s != null)
+                    s.SetPropertyBlock(mpb);
+            yield return null;
+        }
+    }
+
+    // 공격이 맞은 순간 아주 잠깐 멈칫
+    private IEnumerator HitStop()
+    {
+        hitStopping = true;
+        Time.timeScale = 0.05f;
+        yield return new WaitForSecondsRealtime(hitStopDuration);
+        Time.timeScale = 1f;
+        hitStopping = false;
+    }
+
+    private bool hitStopping;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
+    private const float SlashDrawTime = 0.08f;
 
     // 할퀴는 범위: 공격을 시작할 때 바라본 방향 기준 앞쪽 부채꼴
     private bool PlayerInHitArc()
@@ -223,6 +357,11 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     private void OnDisable()
     {
         StopTelegraphEffect();
+        if (hitStopping)
+        {
+            Time.timeScale = 1f;   // 멈칫 도중 꺼져도 게임이 느린 채로 남지 않게
+            hitStopping = false;
+        }
     }
 
     private IEnumerator StaggerRoutine()

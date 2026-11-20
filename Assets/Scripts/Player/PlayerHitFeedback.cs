@@ -31,9 +31,33 @@ public class PlayerHitFeedback : MonoBehaviour
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private Transform hitPoint;   // 비워두면 가슴 높이 자동
 
+    [Header("때린 잡몹 모양 (잡몹이 SetNextHit 으로 넘겨줌)")]
+    [SerializeField] private float hitMarkSize = 1.1f;
+    [SerializeField] private float hitMarkLifetime = 0.5f;
+
     private RawImage vignette;
     private Coroutine vignetteRoutine;
     private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
+
+    // 다음 피해 한 번에만 쓰는 때린 잡몹의 모양
+    private bool hasNextHit;
+    private Color nextInk, nextSecond;
+    private Material nextMark;
+    private ParticleSystem nextSplatter;
+    private Texture nextFrame;
+    private Texture defaultVignetteTexture;
+
+    public void SetNextHit(Color ink, Color second, Material mark, ParticleSystem splatter, Texture frame)
+    {
+        hasNextHit = true;
+        nextInk = ink;
+        nextSecond = second;
+        nextMark = mark;
+        nextSplatter = splatter;
+        nextFrame = frame;
+    }
 
     private void Awake()
     {
@@ -64,17 +88,94 @@ public class PlayerHitFeedback : MonoBehaviour
     {
         if (ThirdPersonCamera.Instance != null)
             ThirdPersonCamera.Instance.Shake(shakeAmplitude, shakeDuration);
-        FlashVignette(damageVignetteColor);
-
+        if (PlayStyledHit())
+            return;
         Vector3 p = HitPosition();
+        vignette.texture = defaultVignetteTexture;
+        FlashVignette(damageVignetteColor);
         StartCoroutine(ClawRoutine(p));
         SpawnSparks(p);
+    }
+
+    // 잡몹이 모양을 넘겨줬으면 그 모양으로 맞은 연출 (피해·느려짐 공통)
+    private bool PlayStyledHit()
+    {
+        if (!hasNextHit)
+            return false;
+        Vector3 p = HitPosition();
+        {
+            hasNextHit = false;
+            // 가장자리: 잡몹 테두리 그림이 있으면 그 그림, 없으면 두 번째 색(먹 색만 쓰면 너무 어두워 안 보임)
+            vignette.texture = nextFrame != null ? nextFrame : defaultVignetteTexture;
+            FlashVignette(nextFrame != null ? Color.white : new Color(nextSecond.r, nextSecond.g, nextSecond.b, damageVignetteColor.a));
+            if (nextMark != null)
+                StartCoroutine(MarkRoutine(p, nextMark));
+            else
+                StartCoroutine(ClawRoutine(p));
+            if (nextSplatter != null)
+                SpawnInk(p, nextSplatter, nextInk, nextSecond);
+            else
+                SpawnSparks(p);
+        }
+        return true;
+    }
+
+    // 때린 잡몹의 상처 그림: 카메라 쪽 몸 앞에 붓으로 긋듯 펼쳐졌다가 사라짐
+    private IEnumerator MarkRoutine(Vector3 center, Material mat)
+    {
+        Camera cam = Camera.main;
+        if (cam == null)
+            yield break;
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Destroy(go.GetComponent<Collider>());
+        Destroy(go, hitMarkLifetime);
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Texture tex = mat.mainTexture;
+        float aspect = tex != null ? (float)tex.width / tex.height : 1f;
+        float roll = Random.Range(-25f, 25f);
+        var mpb = new MaterialPropertyBlock();
+        for (float t = 0f; t < hitMarkLifetime && go != null; t += Time.unscaledDeltaTime)
+        {
+            Vector3 pos = center + (cam.transform.position - center).normalized * 0.4f;
+            go.transform.rotation = Quaternion.LookRotation(pos - cam.transform.position) * Quaternion.Euler(0f, 0f, roll);
+            float draw = Mathf.Clamp01(t / 0.06f);
+            float fade = 1f - Mathf.Clamp01((t - 0.12f) / (hitMarkLifetime - 0.12f));
+            float w = aspect * hitMarkSize;
+            go.transform.position = pos + go.transform.right * w * (draw - 1f) * 0.5f;
+            go.transform.localScale = new Vector3(w * Mathf.Max(draw, 0.001f), hitMarkSize, 1f);
+            mpb.SetVector(BaseMapStId, new Vector4(draw, 1f, 0f, 0f));
+            mpb.SetColor(BaseColorId, new Color(1f, 1f, 1f, fade));
+            mr.SetPropertyBlock(mpb);
+            yield return null;
+        }
+    }
+
+    // 먹과 두 번째 색이 섞여 카메라 쪽으로 튐
+    private void SpawnInk(Vector3 p, ParticleSystem prefab, Color ink, Color second)
+    {
+        Camera cam = Camera.main;
+        // 카메라 쪽으로 튀면 화면을 덮으므로 화면 옆(좌우 중 한쪽, 살짝 위)으로 튀게
+        Vector3 side = cam != null ? cam.transform.right * (Random.value < 0.5f ? -1f : 1f) + Vector3.up * 0.4f : Vector3.up;
+        ParticleSystem fx = Instantiate(prefab, p, Quaternion.LookRotation(side));
+        foreach (ParticleSystem ps in fx.GetComponentsInChildren<ParticleSystem>())
+        {
+            var main = ps.main;
+            main.startColor = new ParticleSystem.MinMaxGradient(ink, second);   // 두 색 중 무작위
+            main.startSizeMultiplier *= 0.7f;    // 잡몹 할퀴기용보다 작게
+            main.startSpeedMultiplier *= 0.6f;
+        }
+        fx.Play(true);
     }
 
     private void HandleSlowed()
     {
         if (ThirdPersonCamera.Instance != null)
             ThirdPersonCamera.Instance.Shake(shakeAmplitude * 0.5f, shakeDuration);
+        if (PlayStyledHit())
+            return;
+        vignette.texture = defaultVignetteTexture;
         FlashVignette(slowVignetteColor);
     }
 
@@ -82,6 +183,10 @@ public class PlayerHitFeedback : MonoBehaviour
     {
         if (hitPoint != null)
             return hitPoint.position;
+        var anim = GetComponentInChildren<Animator>();
+        Transform chest = anim != null && anim.isHuman ? anim.GetBoneTransform(HumanBodyBones.Chest) : null;
+        if (chest != null)
+            return chest.position;
         var cc = GetComponent<CharacterController>();
         float h = cc != null ? cc.center.y + cc.height * 0.15f : 0.3f;   // 가슴 높이
         return transform.position + Vector3.up * h;
@@ -100,7 +205,7 @@ public class PlayerHitFeedback : MonoBehaviour
         imgGo.transform.SetParent(canvasGo.transform, false);
         vignette = imgGo.AddComponent<RawImage>();
         vignette.raycastTarget = false;
-        vignette.texture = MakeVignetteTexture(128);
+        vignette.texture = defaultVignetteTexture = MakeVignetteTexture(128);
         var rt = vignette.rectTransform;
         rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
@@ -116,7 +221,10 @@ public class PlayerHitFeedback : MonoBehaviour
             {
                 float u = (x + 0.5f) / size * 2f - 1f, v = (y + 0.5f) / size * 2f - 1f;
                 float d = Mathf.Sqrt(u * u + v * v) / 1.414f;
-                float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 1f, d));
+                // 붓으로 번진 테두리: 각도·거리에 따라 안쪽 경계를 들쭉날쭉하게
+                float ang = Mathf.Atan2(v, u);
+                d += (Mathf.PerlinNoise(ang * 2.5f + 10f, d * 3f) - 0.5f) * 0.22f + (Mathf.PerlinNoise(u * 9f, v * 9f) - 0.5f) * 0.08f;
+                float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 0.9f, d));
                 px[y * size + x] = new Color(1f, 1f, 1f, a);
             }
         tex.SetPixels(px);

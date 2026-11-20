@@ -13,6 +13,7 @@ Shader "Wongwirok/InkBillboard"
         _OutlinePx ("Outline Width (texels)", Float) = 0
         _InkColor ("Outline Ink", Color) = (0.08, 0.08, 0.09, 1)
         _OutlineVary ("Outline Brush Variation", Range(0, 1)) = 0
+        _NearFade ("Near Camera Fade (m, 0 = off)", Float) = 0
     }
     SubShader
     {
@@ -22,7 +23,7 @@ Shader "Wongwirok/InkBillboard"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         CBUFFER_START(UnityPerMaterial)
-            float4 _BaseMap_ST, _BaseMap_TexelSize; half4 _Tint, _ShadowTint, _InkColor; float _Cutoff, _SwayAmount, _SwaySpeed, _OutlinePx, _OutlineVary;
+            float4 _BaseMap_ST, _BaseMap_TexelSize; half4 _Tint, _ShadowTint, _InkColor; float _Cutoff, _SwayAmount, _SwaySpeed, _OutlinePx, _OutlineVary, _NearFade;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
 
@@ -41,6 +42,19 @@ Shader "Wongwirok/InkBillboard"
             float sway = (sin(t) * 0.7 + sin(t * 2.3 + 1.7) * 0.3) * _SwayAmount * swayW * swayW;
             return origin + right * (posOS.x * sx.x + sway) + float3(0, h, 0) + fwd * 0.01 * posOS.y;
         }
+
+        // 카메라 가까이(수평 거리) 오면 점점 사라짐: 0.4×_NearFade 안쪽은 안 보임, _NearFade 밖은 다 보임
+        float NearFadeVS()
+        {
+            if (_NearFade <= 0) return 1;
+            float2 d = TransformObjectToWorld(float3(0, 0, 0)).xz - _WorldSpaceCameraPos.xz;
+            return saturate((length(d) - _NearFade * 0.4) / (_NearFade * 0.6));
+        }
+        // 반투명 대신 점묘(디더)로 깎아서 깊이·안개와 어긋나지 않게
+        void NearFadeClip(float fade, float2 pix)
+        {
+            if (fade < 1) clip(fade - frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715)))) - 1e-3);
+        }
         ENDHLSL
 
         Pass
@@ -53,16 +67,17 @@ Shader "Wongwirok/InkBillboard"
             #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
-            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; float fog : TEXCOORD2; };
+            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float3 ws : TEXCOORD1; float fog : TEXCOORD2; float fade : TEXCOORD3; };
             V vert(A i)
             {
                 V o; float w; float3 ws = BillboardWS(i.pos.xyz, w);
-                o.pos = TransformWorldToHClip(ws); o.ws = ws; o.uv = TRANSFORM_TEX(i.uv, _BaseMap); o.fog = ComputeFogFactor(o.pos.z); return o;
+                o.pos = TransformWorldToHClip(ws); o.ws = ws; o.uv = TRANSFORM_TEX(i.uv, _BaseMap); o.fog = ComputeFogFactor(o.pos.z); o.fade = NearFadeVS(); return o;
             }
             half4 frag(V i) : SV_Target
             {
                 half4 c = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv) * _Tint;
                 clip(c.a - _Cutoff);
+                NearFadeClip(i.fade, i.pos.xy);
                 Light l = GetMainLight(TransformWorldToShadowCoord(i.ws));
                 half3 col = c.rgb * lerp(_ShadowTint.rgb, 1, step(0.5, l.shadowAttenuation)); // 그림자 속은 한 단계만 어둡게
                 // 바깥 윤곽 먹선: 주변 8방향 중 하나라도 투명이면 가장자리
@@ -118,9 +133,9 @@ Shader "Wongwirok/InkBillboard"
             #pragma vertex vert
             #pragma fragment frag
             struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
-            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
-            V vert(A i) { V o; float w; o.pos = TransformWorldToHClip(BillboardWS(i.pos.xyz, w)); o.uv = TRANSFORM_TEX(i.uv, _BaseMap); return o; }
-            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); return 0; }
+            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float fade : TEXCOORD1; };
+            V vert(A i) { V o; float w; o.pos = TransformWorldToHClip(BillboardWS(i.pos.xyz, w)); o.uv = TRANSFORM_TEX(i.uv, _BaseMap); o.fade = NearFadeVS(); return o; }
+            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); NearFadeClip(i.fade, i.pos.xy); return 0; }
             ENDHLSL
         }
 
@@ -131,15 +146,16 @@ Shader "Wongwirok/InkBillboard"
             #pragma vertex vert
             #pragma fragment frag
             struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
-            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float3 n : TEXCOORD1; };
+            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float3 n : TEXCOORD1; float fade : TEXCOORD2; };
             V vert(A i)
             {
                 V o; float w; float3 ws = BillboardWS(i.pos.xyz, w);
                 o.pos = TransformWorldToHClip(ws); o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 float3 toCam = _WorldSpaceCameraPos - ws; toCam.y = 0; o.n = normalize(toCam + float3(1e-4, 0, 0));   // 판은 늘 카메라를 봄
+                o.fade = NearFadeVS();
                 return o;
             }
-            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); return half4(normalize(i.n), 0); }
+            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); NearFadeClip(i.fade, i.pos.xy); return half4(normalize(i.n), 0); }
             ENDHLSL
         }
     }

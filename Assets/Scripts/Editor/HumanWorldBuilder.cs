@@ -506,7 +506,6 @@ public static class HumanWorldBuilder
     {
         var lakeRoot = new GameObject("HW_Lakeside").transform;
         lakeRoot.SetParent(root);
-        const string willow = "Assets/VarcoAssets/Tree/Green Weeping Willow.glb";
         for (int i = 0; i < BossTrees.Length; i++)
         {
             var p = BossTrees[i];
@@ -724,7 +723,7 @@ public static class HumanWorldBuilder
         // 시험: 사용자 그림 나무 4종 (느티나무 자리는 느티나무·벚꽃 반반)
         if (n == "pine") n = "t_pine";
         else if (n == "willow") n = "t_willow";
-        else if (n == "zelkova") n = R(0, 1) < 0.5f ? "t_zelkova" : "t_cherry";
+        else if (n == "zelkova") { if (R(0, 1) < 0.5f) return null; n = "t_cherry"; } // 느티나무는 뺌 (벚꽃 반만 남김)
         else if ((n == "plant_vine" || n == "grass_tuft") && R(0, 1) < 0.5f) n += "_b"; // 덩굴·풀포기는 그림 2종 랜덤
         var mat = SpriteMat(n, sway < 0 ? height * 0.025f : sway, fade);
         var tex = mat.GetTexture("_BaseMap");

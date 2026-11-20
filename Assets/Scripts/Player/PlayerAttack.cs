@@ -526,7 +526,7 @@ public class PlayerAttack : MonoBehaviour
         AnimatorStateInfo info = animator.IsInTransition(0) && StepOf(animator.GetNextAnimatorStateInfo(0).shortNameHash) == currentStep
             ? animator.GetNextAnimatorStateInfo(0)
             : animator.GetCurrentAnimatorStateInfo(0);
-        return info.normalizedTime * info.length;
+        return info.normalizedTime * info.length * info.speed * info.speedMultiplier;   // 동작 그림 기준 시간 (상태 속도를 바꿔도 hitTime 이 그대로 맞음)
     }
 
     private int StepOf(int shortNameHash)

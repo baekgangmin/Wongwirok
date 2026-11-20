@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_cherry_3_0.00
+  m_Name: M_ghost_t_pine
   m_Shader: {fileID: 4800000, guid: 981ce5fcfccc93a4ba6acf7402a8d342, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,14 +24,16 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 74d986104a1822e44981d5c003de3b84, type: 3}
+        m_Texture: {fileID: 2800000, guid: ddb44705ce34a4c4ab0191386ac28ec1, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.4
+    - _NearFade: 0
     - _OutlinePx: 0
-    - _SwayAmount: 0.32394025
+    - _OutlineVary: 0
+    - _SwayAmount: 0.3
     - _SwaySpeed: 1.2
     m_Colors:
     - _InkColor: {r: 0.079999976, g: 0.079999976, b: 0.089999996, a: 1}

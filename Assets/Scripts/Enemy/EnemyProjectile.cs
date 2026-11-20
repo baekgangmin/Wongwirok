@@ -16,6 +16,19 @@ public class EnemyProjectile : MonoBehaviour
     private Color impactColor = new Color(1f, 0.45f, 0.1f, 1f);
     private Transform owner;
 
+    // 주인공이 맞았을 때 연출 (쏜 잡몹이 넘겨줌)
+    private bool hasHitStyle;
+    private Color styleInk, styleSecond;
+    private Material styleMark;
+    private ParticleSystem styleSplatter;
+    private Texture styleFrame;
+
+    public void SetHitStyle(Color ink, Color second, Material mark, ParticleSystem splatter, Texture frame)
+    {
+        hasHitStyle = true;
+        styleInk = ink; styleSecond = second; styleMark = mark; styleSplatter = splatter; styleFrame = frame;
+    }
+
     public void Launch(Vector3 launchDirection, float launchSpeed, float launchDamage)
     {
         Launch(launchDirection, launchSpeed, launchDamage, null, null, impactColor, null);
@@ -97,7 +110,11 @@ public class EnemyProjectile : MonoBehaviour
         {
             bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
             if (!playerInvulnerable)
+            {
+                if (hasHitStyle)
+                    target.GetComponent<PlayerHitFeedback>()?.SetNextHit(styleInk, styleSecond, styleMark, styleSplatter, styleFrame);
                 playerHealth?.TakeDamage(damage);
+            }
 
             Explode();
         }

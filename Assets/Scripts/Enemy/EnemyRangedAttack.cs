@@ -20,6 +20,13 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private ParticleSystem impactEffectPrefab;
     [SerializeField] private Color projectileColor = new Color(1f, 0.45f, 0.1f, 1f);
 
+    [Header("주인공이 맞았을 때 (이 잡몹 모양)")]
+    [SerializeField] private Color hitSecondColor = new Color(0.2f, 0.2f, 0.25f, 1f);
+    [Tooltip("주인공 몸에 그어지는 상처 그림 (비우면 기본)")]
+    [SerializeField] private Material hitMarkMaterial;
+    [Tooltip("맞은 순간 화면 가장자리 테두리 그림 (비우면 색만)")]
+    [SerializeField] private Texture hitFrameTexture;
+
     [Header("Colors")]
     [SerializeField] private Color telegraphColor = new Color(1f, 0.3f, 0f);
 
@@ -112,6 +119,8 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
 
         EnemyProjectile projectile = projectileObject.AddComponent<EnemyProjectile>();
         projectile.Launch(direction, projectileSpeed, projectileDamage, projectileVisualPrefab, impactEffectPrefab, projectileColor, transform);
+        if (hitMarkMaterial != null || hitFrameTexture != null)
+            projectile.SetHitStyle(projectileColor, hitSecondColor, hitMarkMaterial, impactEffectPrefab, hitFrameTexture);
     }
 
     private void SetColor(Color color)

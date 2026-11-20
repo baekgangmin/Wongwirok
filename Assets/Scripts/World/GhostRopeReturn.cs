@@ -45,8 +45,7 @@ public class GhostRopeReturn : MonoBehaviour
 
         rope = RopeLine.Create(transform, ropeMaterial);
         rope.startPoint = anchor;
-        rope.endPoint = player != null ? player.transform : null;
-        rope.endOffset = Vector3.up * 0.05f;
+        rope.endPoint = player != null ? RopeLine.Waist(player.transform) : null;
         rope.slack = 0.35f;
 
         prompt = ScreenPrompt.Create(transform);

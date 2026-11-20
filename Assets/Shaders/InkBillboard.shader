@@ -108,5 +108,39 @@ Shader "Wongwirok/InkBillboard"
             half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); return 0; }
             ENDHLSL
         }
+
+        // 깊이 그림: 이게 없으면 화면 전체 안개·SSAO 가 나무 뒤 배경 깊이를 써서 안개가 나무를 뚫고 보임
+        Pass
+        {
+            Tags { "LightMode" = "DepthOnly" }
+            ColorMask R
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
+            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
+            V vert(A i) { V o; float w; o.pos = TransformWorldToHClip(BillboardWS(i.pos.xyz, w)); o.uv = TRANSFORM_TEX(i.uv, _BaseMap); return o; }
+            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); return 0; }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Tags { "LightMode" = "DepthNormals" }
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; };
+            struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float3 n : TEXCOORD1; };
+            V vert(A i)
+            {
+                V o; float w; float3 ws = BillboardWS(i.pos.xyz, w);
+                o.pos = TransformWorldToHClip(ws); o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
+                float3 toCam = _WorldSpaceCameraPos - ws; toCam.y = 0; o.n = normalize(toCam + float3(1e-4, 0, 0));   // 판은 늘 카메라를 봄
+                return o;
+            }
+            half4 frag(V i) : SV_Target { clip(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv).a * _Tint.a - _Cutoff); return half4(normalize(i.n), 0); }
+            ENDHLSL
+        }
     }
 }

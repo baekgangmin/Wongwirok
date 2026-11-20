@@ -28,6 +28,14 @@ public class RopeLine : MonoBehaviour
         return go.AddComponent<RopeLine>();
     }
 
+    // 밧줄 끝을 몸(골반 뼈)에 붙인다: 구르기처럼 몸만 움직이는 동작에도 따라가게
+    public static Transform Waist(Transform player)
+    {
+        var anim = player.GetComponentInChildren<Animator>();
+        Transform hips = anim != null && anim.isHuman ? anim.GetBoneTransform(HumanBodyBones.Hips) : null;
+        return hips != null ? hips : player;
+    }
+
     private void Awake()
     {
         line = GetComponent<LineRenderer>();

@@ -73,8 +73,7 @@ public class RopeTieTree : MonoBehaviour
         tied = true;
         rope = RopeLine.Create(null, ropeMaterial);
         rope.startPoint = tiePoint;
-        rope.endPoint = player.transform;
-        rope.endOffset = Vector3.up * 0.05f;
+        rope.endPoint = RopeLine.Waist(player.transform);
         rope.slack = 0.3f;
     }
 

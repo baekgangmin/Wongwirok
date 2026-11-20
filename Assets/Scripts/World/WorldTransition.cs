@@ -2,6 +2,8 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 // 인간 세계 ↔ 귀의 세계 이동 연출.
 // 물에 가라앉으며 화면이 물빛 → 핏빛 → 암전, 다음 씬을 불러온 뒤
@@ -29,9 +31,12 @@ public class WorldTransition : MonoBehaviour
     private static readonly int SpeedId = Animator.StringToHash("Speed");
 
     private bool riseOnArrival = true;
+    private bool drown;
+    private Volume drownVolume;
+    private const float DrownTime = 4f;
 
     // riseOnArrival: true = 도착한 곳 물속에서 떠오름 / false = 도착한 곳 땅 위에 바로 서 있음
-    public static void Begin(string targetScene, Vector3 arrivalPoint, float arrivalYaw, Color waterTint, Color worldTint, bool riseOnArrival = true)
+    public static void Begin(string targetScene, Vector3 arrivalPoint, float arrivalYaw, Color waterTint, Color worldTint, bool riseOnArrival = true, bool drown = false)
     {
         if (IsRunning)
             return;
@@ -44,6 +49,7 @@ public class WorldTransition : MonoBehaviour
         t.waterTint = waterTint;
         t.worldTint = worldTint;
         t.riseOnArrival = riseOnArrival;
+        t.drown = drown;
         t.BuildOverlay();
         t.StartCoroutine(t.Run());
     }
@@ -72,33 +78,10 @@ public class WorldTransition : MonoBehaviour
         var player = FindPlayer();
         SetPlayerControl(player, false);
         Vector3 start = player != null ? player.transform.position : Vector3.zero;
-        for (float t = 0f; t < SinkTime; t += Time.deltaTime)
-        {
-            float k = t / SinkTime;
-            if (player != null)
-                player.transform.position = start + Vector3.down * (SinkDepth * k * k);
-            overlay.color = new Color(waterTint.r, waterTint.g, waterTint.b, Mathf.Lerp(0f, 0.6f, k));
-            yield return null;
-        }
-
-        // 2) 물빛 → 다음 세계 빛
-        for (float t = 0f; t < TintTime; t += Time.deltaTime)
-        {
-            float k = t / TintTime;
-            Color c = Color.Lerp(waterTint, worldTint, k);
-            c.a = Mathf.Lerp(0.6f, 0.9f, k);
-            overlay.color = c;
-            yield return null;
-        }
-
-        // 3) 암전
-        Color from = overlay.color;
-        for (float t = 0f; t < BlackTime; t += Time.deltaTime)
-        {
-            overlay.color = Color.Lerp(from, Color.black, t / BlackTime);
-            yield return null;
-        }
-        overlay.color = Color.black;
+        if (drown)
+            yield return Drown(player, start);
+        else
+            yield return SinkAndTint(player, start);
 
         // 4) 다음 씬 불러오기
         var op = SceneManager.LoadSceneAsync(targetScene, LoadSceneMode.Single);
@@ -132,6 +115,7 @@ public class WorldTransition : MonoBehaviour
             if (k < 0.3f) c.a = Mathf.Lerp(1f, 0.85f, k / 0.3f);
             else c.a = Mathf.Lerp(0.85f, 0f, (k - 0.3f) / 0.7f);
             overlay.color = c;
+            if (drownVolume != null) drownVolume.weight = 1f - k;   // 정신이 돌아오듯 흐림·어둠이 걷힘
             yield return null;
         }
         if (player != null)
@@ -142,6 +126,80 @@ public class WorldTransition : MonoBehaviour
 
         IsRunning = false;
         Destroy(gameObject);
+    }
+
+    // 익사 직전: 천천히 가라앉으며 화면이 흐려지고, 가장자리부터 어두워지며 심장 뛰듯 조여 오고, 색이 빠지다 암전
+    private IEnumerator Drown(PlayerMovement player, Vector3 start)
+    {
+        drownVolume = gameObject.AddComponent<Volume>();
+        drownVolume.isGlobal = true;
+        drownVolume.priority = 100;
+        var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+        drownVolume.profile = profile;
+        var vig = profile.Add<Vignette>(true);
+        vig.color.Override(Color.black); vig.smoothness.Override(1f); vig.intensity.Override(0f);
+        var dof = profile.Add<DepthOfField>(true);
+        dof.mode.Override(DepthOfFieldMode.Gaussian); dof.gaussianStart.Override(0f); dof.gaussianEnd.Override(80f);
+        dof.gaussianMaxRadius.Override(1.5f); dof.highQualitySampling.Override(true);
+        var col = profile.Add<ColorAdjustments>(true);
+        col.saturation.Override(0f); col.postExposure.Override(0f);
+
+        float phase = 0f;
+        for (float t = 0f; t < DrownTime; t += Time.deltaTime)
+        {
+            float k = t / DrownTime;
+            if (player != null)
+                player.transform.position = start + Vector3.down * (SinkDepth * k * k);
+            phase += Time.deltaTime * Mathf.Lerp(1.1f, 2.4f, k);                  // 심장이 점점 빨리 뜀
+            float beat = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(phase * Mathf.PI * 2f)), 8f);
+            vig.intensity.value = Mathf.Lerp(0.15f, 0.8f, k) + beat * 0.12f;
+            dof.gaussianEnd.value = Mathf.Lerp(80f, 0.5f, Mathf.Sqrt(k));         // 처음부터 빠르게 흐려짐
+            col.saturation.value = Mathf.Lerp(0f, -80f, k);
+            col.postExposure.value = Mathf.Lerp(0f, -1.5f, k) - beat * 0.3f;
+            Color c = k < 0.75f
+                ? new Color(waterTint.r, waterTint.g, waterTint.b, Mathf.Lerp(0f, 0.35f, k / 0.75f))
+                : Color.Lerp(new Color(waterTint.r, waterTint.g, waterTint.b, 0.35f), Color.black, (k - 0.75f) / 0.25f);
+            overlay.color = c;
+            yield return null;
+        }
+        overlay.color = Color.black;
+    }
+
+    // 기존: 물빛 → 다음 세계 빛 → 암전
+    private IEnumerator SinkAndTint(PlayerMovement player, Vector3 start)
+    {
+        for (float t = 0f; t < SinkTime; t += Time.deltaTime)
+        {
+            float k = t / SinkTime;
+            if (player != null)
+                player.transform.position = start + Vector3.down * (SinkDepth * k * k);
+            overlay.color = new Color(waterTint.r, waterTint.g, waterTint.b, Mathf.Lerp(0f, 0.6f, k));
+            yield return null;
+        }
+
+        // 2) 물빛 → 다음 세계 빛
+        for (float t = 0f; t < TintTime; t += Time.deltaTime)
+        {
+            float k = t / TintTime;
+            Color c = Color.Lerp(waterTint, worldTint, k);
+            c.a = Mathf.Lerp(0.6f, 0.9f, k);
+            overlay.color = c;
+            yield return null;
+        }
+
+        // 3) 암전
+        Color from = overlay.color;
+        for (float t = 0f; t < BlackTime; t += Time.deltaTime)
+        {
+            overlay.color = Color.Lerp(from, Color.black, t / BlackTime);
+            yield return null;
+        }
+        overlay.color = Color.black;
+    }
+
+    private void OnDestroy()
+    {
+        if (drownVolume != null) Destroy(drownVolume.profile);
     }
 
     private static PlayerMovement FindPlayer() => FindAnyObjectByType<PlayerMovement>();

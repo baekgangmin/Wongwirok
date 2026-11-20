@@ -96,6 +96,6 @@ public class RopeTieTree : MonoBehaviour
         RopeSession.GhostAnchor = new Vector3(p.x, waterLevel - 0.25f, p.z);
         RopeSession.HumanReturnPoint = tiePoint.position + toLake * 3f; // 줄기가 굵어서 조금 떨어진 자리
         RopeSession.HumanReturnYaw = Quaternion.LookRotation(toLake).eulerAngles.y;
-        WorldTransition.Begin(ghostScene, new Vector3(p.x, 0f, p.z), player.transform.eulerAngles.y, waterTint, worldTint, true);
+        WorldTransition.Begin(ghostScene, new Vector3(p.x, 0f, p.z), player.transform.eulerAngles.y, waterTint, worldTint, true, drown: true);
     }
 }

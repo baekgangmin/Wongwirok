@@ -26,13 +26,14 @@ Material:
     m_Ints: []
     m_Floats:
     - _Alpha: 0.88
-    - _DepthRange: 2.5
+    - _Bands: 3
+    - _DepthRange: 1.2
     - _FoamWidth: 0.35
     - _RippleScale: 0.35
     m_Colors:
-    - _Deep: {r: 0.19999996, g: 0.29999998, b: 0.35999998, a: 1}
-    - _Foam: {r: 0.94, g: 0.92, b: 0.86, a: 1}
-    - _InkColor: {r: 0.11999995, g: 0.12999997, b: 0.14999998, a: 1}
-    - _Shallow: {r: 0.54999995, g: 0.68, b: 0.7, a: 1}
+    - _Deep: {r: 0.17, g: 0.37, b: 0.43, a: 1}
+    - _Foam: {r: 0.72, g: 0.84, b: 0.84, a: 1}
+    - _InkColor: {r: 0.06, g: 0.1, b: 0.13, a: 1}
+    - _Shallow: {r: 0.4, g: 0.62, b: 0.64, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

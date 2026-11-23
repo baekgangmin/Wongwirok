@@ -11,6 +11,7 @@ Shader "Wongwirok/InkWater"
         _FoamWidth ("Foam Width (m)", Float) = 0.35
         _RippleScale ("Ripple Scale", Float) = 0.35
         _Alpha ("Alpha", Range(0, 1)) = 0.88
+        _Bands ("Depth Bands (0 = off)", Float) = 0
     }
     SubShader
     {
@@ -28,7 +29,7 @@ Shader "Wongwirok/InkWater"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 half4 _Shallow, _Deep, _Foam, _InkColor;
-                float _DepthRange, _FoamWidth, _RippleScale, _Alpha;
+                float _DepthRange, _FoamWidth, _RippleScale, _Alpha, _Bands;
             CBUFFER_END
             struct A { float4 pos : POSITION; };
             struct V { float4 pos : SV_POSITION; float3 ws : TEXCOORD0; float4 sp : TEXCOORD1; float fog : TEXCOORD2; };
@@ -50,7 +51,18 @@ Shader "Wongwirok/InkWater"
                 float surf = LinearEyeDepth(i.pos.z, _ZBufferParams);
                 float depth = max(0, scene - surf);
 
-                half3 col = lerp(_Shallow.rgb, _Deep.rgb, saturate(depth / _DepthRange));
+                float k = saturate(depth / _DepthRange);
+                float ring = 0;
+                if (_Bands > 0)
+                {
+                    // 깊이를 몇 단으로 나눠 물가를 따라 등고선처럼 칠함 (경계는 살짝 일렁임 + 밝은 선)
+                    float q = k * _Bands + (N(i.ws.xz * 0.3) - 0.5) * 0.4;
+                    float f = frac(q);
+                    k = saturate((floor(q) + smoothstep(0.88, 1.0, f)) / _Bands);
+                    ring = (1 - smoothstep(0.0, 0.07, min(f, 1 - f))) * step(0.5, q);
+                }
+                half3 col = lerp(_Shallow.rgb, _Deep.rgb, k);
+                col = lerp(col, _Shallow.rgb * 1.15, ring * 0.45);
 
                 // 물결: 가로로 길쭉한 잡음 띠를 얇게 잘라 붓 획처럼
                 float2 w = i.ws.xz * _RippleScale;

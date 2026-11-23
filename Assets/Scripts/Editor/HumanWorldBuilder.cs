@@ -591,11 +591,9 @@ public static class HumanWorldBuilder
             foreach (int side in new[] { -1, 1 })
                 Place(PL + "RankStone.glb", "Pumgyeseok", new Vector3(side * 4f, 0, -140 + i * 4f), 180, 1f, v, true, 0f);
 
-        // 월대(납작하게 늘림) 위에 정전
-        var woldae = Place(PL + "Woldae.glb", "Woldae", new Vector3(0, 0, -112), 180, 1f, v, true, 0f);
-        if (woldae) woldae.transform.GetChild(0).localScale = new Vector3(30f, 10f, 22f);
+        // 정전: 자체 2단 기단이 있어 월대 없이 마당에 바로 둠 (첫 계단 높이를 캐릭터가 오를 만큼 묻음)
         var hall = Place(PL + "ThroneHall.glb", "Jeongjeon", new Vector3(0, 0, -110), 180, 22f, v, true, 0f);
-        if (hall) hall.transform.position += Vector3.up * 2.0f;
+        if (hall) hall.transform.position += Vector3.down * 0.3f;
         Place(PL + "Deumu.glb", "Deumu_W", new Vector3(-13, 0, -126), 0, 1.6f, v, true, 0f);
         Place(PL + "Deumu.glb", "Deumu_E", new Vector3(13, 0, -126), 0, 1.6f, v, true, 0f);
         // 정전 마당 양옆 행각 (안쪽을 바라봄)

@@ -46,3 +46,5 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 3
     m_NumAlphaKeys: 3
+  slashTexture: {fileID: 2800000, guid: 58658396020dece49893bef1f42e19cc, type: 3}
+  hitTexture: {fileID: 2800000, guid: e3c24f38653b6044ba3db2bc08adcb25, type: 3}

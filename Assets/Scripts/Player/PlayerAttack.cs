@@ -96,7 +96,10 @@ public class PlayerAttack : MonoBehaviour
     {
         equippedSword = sword;
         if (slashTrail != null && sword != null)
+        {
             slashTrail.SetColor(sword.trailColor);
+            slashTrail.SetTexture(sword.slashTexture);   // 붓 획 그림이 있는 칼은 칼날 선에 그림을 입힘
+        }
     }
 
     [Header("Visual")]
@@ -659,6 +662,13 @@ public class PlayerAttack : MonoBehaviour
         Vector3 point = canClosest ? target.ClosestPoint(from) : target.bounds.ClosestPoint(from);
         if ((point - from).sqrMagnitude < 0.0001f)
             point = target.bounds.center;
+
+        if (equippedSword != null && equippedSword.hitTexture != null)
+        {
+            // 붓 그림 효과가 있는 칼은 예전 불꽃 입자 대신 그림만 (반격처럼 색을 바꾸는 공격은 그림에 색을 입힘)
+            InkFxSprite.Spawn(equippedSword.hitTexture, point, 1.7f * scale, Random.Range(0f, 360f), false, 0.3f, 0.6f, colorOverride ?? Color.white);
+            return;
+        }
 
         ParticleSystem fx = Instantiate(hitEffectPrefab, point, Quaternion.LookRotation(from - point == Vector3.zero ? -transform.forward : (from - point).normalized));
         fx.transform.localScale *= scale;

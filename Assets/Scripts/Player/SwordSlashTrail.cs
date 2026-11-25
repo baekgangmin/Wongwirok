@@ -55,6 +55,23 @@ public class SwordSlashTrail : MonoBehaviour
             colorOverLife = gradient;
     }
 
+    // 붓 그림 띠 (가로: 왼쪽 = 방금 지나간 칼날의 먹 머리 → 오른쪽 = 갈라진 꼬리, 세로: 아래 = 밑동, 위 = 칼끝).
+    // 넣으면 단색 빛 띠 대신 이 그림을 칼이 지나간 자리에 입힌다. null 이면 예전 빛 띠.
+    private Texture2D inkTexture;
+    private Material inkMaterial;
+
+    public void SetTexture(Texture2D tex)
+    {
+        inkTexture = tex;
+        if (tex != null)
+        {
+            if (inkMaterial == null) inkMaterial = new Material(Shader.Find("Sprites/Default"));
+            inkMaterial.mainTexture = tex;
+        }
+        if (meshObject != null)
+            meshObject.GetComponent<MeshRenderer>().sharedMaterial = tex != null ? inkMaterial : trailMaterial;
+    }
+
     public void SetEmitting(bool on, bool strongHit)
     {
         if (on && !emitting)
@@ -80,6 +97,8 @@ public class SwordSlashTrail : MonoBehaviour
     {
         if (meshObject != null)
             Destroy(meshObject);
+        if (inkMaterial != null)
+            Destroy(inkMaterial);
     }
 
     // 시간을 받아 한 프레임 진행 (에디터 검증용으로도 쓸 수 있게 공개)
@@ -118,7 +137,7 @@ public class SwordSlashTrail : MonoBehaviour
         meshObject.hideFlags = HideFlags.DontSave;
         meshObject.AddComponent<MeshFilter>().sharedMesh = mesh;
         var mr = meshObject.AddComponent<MeshRenderer>();
-        mr.sharedMaterial = trailMaterial;
+        mr.sharedMaterial = inkTexture != null ? inkMaterial : trailMaterial;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         mr.receiveShadows = false;
     }
@@ -171,6 +190,7 @@ public class SwordSlashTrail : MonoBehaviour
                 float age = Mathf.Clamp01((now - time) / life);
                 Color c = colorOverLife.Evaluate(age);
                 c.r *= brightness; c.g *= brightness; c.b *= brightness;
+                if (inkTexture != null) c = Color.white;   // 그림 색 그대로 (꼬리는 그림 자체가 갈라지며 사라짐)
 
                 verts.Add(b); verts.Add(tip);
                 colors.Add(c); colors.Add(c);

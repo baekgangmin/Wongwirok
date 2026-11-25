@@ -15,4 +15,10 @@ public class SwordData : ScriptableObject
 
     [Header("칼날 궤적 색 (왼쪽 = 방금 지나간 자리, 오른쪽 = 사라지는 끝)")]
     public Gradient trailColor = new Gradient();
+
+    [Header("붓 그림 이펙트 (배경 투명 PNG)")]
+    [Tooltip("칼이 지나간 자리에 입히는 곧은 붓 획 띠 (왼쪽 = 먹 머리, 오른쪽 = 갈라진 꼬리, 위 = 칼끝)")]
+    public Texture2D slashTexture;
+    [Tooltip("맞은 자리에서 터지는 그림")]
+    public Texture2D hitTexture;
 }

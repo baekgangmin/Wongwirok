@@ -174,7 +174,8 @@ public class PlayerAttack : MonoBehaviour
         for (int i = 0; i < specialAttacks.Length; i++)
             stateHashes[comboHits.Length + i] = Animator.StringToHash(specialAttacks[i].stateName);
 
-        Equip(equippedSword);
+        var saved = SwordCatalog.Get(GameProgress.SwordTier);   // 양기귀에게 받은 나뭇가지가 씬을 넘어도 유지
+        Equip(saved != null ? saved : equippedSword);
     }
 
     private void Update()

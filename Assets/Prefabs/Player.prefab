@@ -3828,6 +3828,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 100
+  humanScene: HumanWorld_01
 --- !u!114 &2544985834708345814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3855,6 +3856,8 @@ MonoBehaviour:
   playerHealth: {fileID: 0}
   playerMovement: {fileID: 0}
   hitPoint: {fileID: 0}
+  hitMarkSize: 1.1
+  hitMarkLifetime: 0.5
 --- !u!114 &2166242209094082736
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6935,6 +6938,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 45ff31714867cd144a14448e18b1d432, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5894806439634863188}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 45ff31714867cd144a14448e18b1d432, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5682654847653239717}
   m_SourcePrefab: {fileID: 100100000, guid: 45ff31714867cd144a14448e18b1d432, type: 3}
 --- !u!4 &5165713950445712081 stripped
 Transform:
@@ -7138,6 +7144,39 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ForearmTwist
   share: 0.66
+--- !u!114 &5682654847653239717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5547200902465120363}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eaf59c4bf3393cc4ca247af03a047fe5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDustPuffs
+  humanPuffs:
+  - {fileID: 2800000, guid: 25c0a4f1f6746ce448fe0dd5ab80229f, type: 3}
+  - {fileID: 2800000, guid: 34df1d2afb52ab343902bd10abb957a8, type: 3}
+  - {fileID: 2800000, guid: 4f05e1d960f6bd144a39c76cfc7cbcfa, type: 3}
+  - {fileID: 2800000, guid: 5815c1a9a54dd1544af15b349aa31b3c, type: 3}
+  - {fileID: 2800000, guid: 06937b5fff192eb4daf189b81123d9f7, type: 3}
+  - {fileID: 2800000, guid: ee3361208c5cd964495bb6a28ee646fa, type: 3}
+  - {fileID: 2800000, guid: e2381278429cda64184d339f7a2cbd2c, type: 3}
+  - {fileID: 2800000, guid: 80752694d12ec224b91f52aaf1cfdc40, type: 3}
+  ghostPuffs:
+  - {fileID: 2800000, guid: fb99135fb225fdf4ab2b8819a0fa9892, type: 3}
+  - {fileID: 2800000, guid: c417507085f3dbf4391919166d4b9598, type: 3}
+  - {fileID: 2800000, guid: fee17c20f085acb4b82007a5af40f887, type: 3}
+  - {fileID: 2800000, guid: 96d008a62a0ddbb4fa3b988b52926dd2, type: 3}
+  - {fileID: 2800000, guid: 687714800163a6c4996e823d6b7bceb8, type: 3}
+  - {fileID: 2800000, guid: 88eef17ae318da74e975a989044f9855, type: 3}
+  - {fileID: 2800000, guid: 8dbac7dd2f1a7c547910bd2997d04764, type: 3}
+  - {fileID: 2800000, guid: 5f35d43ea5d447d4e8dc85af8fbb7990, type: 3}
+  size: 0.55
+  life: 0.5
+  minSpeed: 0.7
 --- !u!1001 &7438736610067568063
 PrefabInstance:
   m_ObjectHideFlags: 0

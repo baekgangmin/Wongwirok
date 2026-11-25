@@ -1,5 +1,6 @@
-// 보스 물기둥: 위로 흘러 올라가는 반투명 물 원통.
-// - 물결 무늬(코드로 만든 노이즈)가 위로 흐르고, 가장자리(프레넬)는 밝게, 흰 물줄기 띠가 섞임
+// 보스 물기둥 (수묵화풍): 위로 흘러 올라가는 물 원통.
+// - 색은 2~3단계 평평한 띠(셀), 실루엣과 부서지는 꼭대기에 굵기가 출렁이는 먹 선
+// - 물결 노이즈의 등고선이 끝이 또렷한 흰 붓 결이 되어 위로 흐름
 // - 정점을 노이즈로 살짝 흔들어 표면이 출렁임
 // - _Rise(0~1): 아래부터 이 높이까지만 보임 (솟을 때 0→1, 무너질 때 1→0)
 // 메시 uv: x = 둘레(0~1), y = 높이(0 아래 ~ 1 꼭대기)
@@ -8,7 +9,11 @@ Shader "Wongwirok/WaterColumn"
     Properties
     {
         _DeepColor ("Deep Color", Color) = (0.05, 0.22, 0.28, 1)
+        _MidColor ("Mid Color", Color) = (0.25, 0.55, 0.62, 1)
         _EdgeColor ("Edge / Foam Color", Color) = (0.65, 0.9, 1, 1)
+        _InkColor ("Ink Outline Color", Color) = (0.06, 0.06, 0.08, 1)
+        _OutlineWidth ("Outline Width", Range(0, 0.6)) = 0.28
+        _LineWidth ("Flow Line Width", Range(0, 0.1)) = 0.03
         _Alpha ("Alpha", Range(0, 1)) = 0.75
         _FlowSpeed ("Flow Speed", Float) = 2.2
         _NoiseScale ("Noise Scale (둘레, 높이)", Vector) = (6, 3, 0, 0)
@@ -43,7 +48,11 @@ Shader "Wongwirok/WaterColumn"
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _DeepColor;
+                half4 _MidColor;
                 half4 _EdgeColor;
+                half4 _InkColor;
+                half _OutlineWidth;
+                half _LineWidth;
                 half _Alpha;
                 half _FlowSpeed;
                 float4 _NoiseScale;
@@ -109,35 +118,42 @@ Shader "Wongwirok/WaterColumn"
             {
                 float t = _Time.y * _FlowSpeed;
 
-                // 솟아오르는/무너지는 높이 컷. 꼭대기 경계는 들쭉날쭉하게 (물이 부서지는 끝)
+                // 솟아오르는/무너지는 높이 컷. 꼭대기 경계는 들쭉날쭉 (물이 부서지는 끝)
                 float jag = (fbm(float2(i.uv.x * 8.0, t * 0.7), 8.0) - 0.5) * 0.16;
-                half rise = smoothstep(_Rise + 0.02 + jag, _Rise - 0.05 + jag, i.uv.y);
-                if (rise <= 0.001) discard;
+                float topDist = (_Rise + jag) - i.uv.y;           // 꼭대기 경계까지 남은 높이
+                if (topDist < 0.0) discard;
 
                 float2 flowUV = float2(i.uv.x * _NoiseScale.x, i.uv.y * _NoiseScale.y - t);
                 float n = fbm(flowUV, _NoiseScale.x);
-                // 세로로 길게 늘린 노이즈 → 위로 솟구치는 물줄기 결
                 float2 streakUV = float2(i.uv.x * _NoiseScale.x * 2.0, i.uv.y * _NoiseScale.y * 0.35 - t * 1.3);
                 float n2 = fbm(streakUV + 7.3, _NoiseScale.x * 2.0);
 
-                // 위로 길게 늘어진 흰 물줄기
-                half streak = smoothstep(0.52, 0.72, n2) * _StreakAmount;
-
                 float3 N = normalize(i.normalWS) * (isFront ? 1.0 : -1.0);
                 float3 V = normalize(i.viewDirWS);
-                half fresnel = pow(1.0 - saturate(abs(dot(N, V))), _FresnelPower);
+                float ndv = saturate(abs(dot(N, V)));
+                half fresnel = pow(1.0 - ndv, _FresnelPower);
 
-                half3 col = lerp(_DeepColor.rgb, _EdgeColor.rgb, saturate(fresnel * 0.85 + n * 0.25));
-                col = lerp(col, _EdgeColor.rgb * 1.2, saturate(streak));
+                // 1) 셀: 밝기를 3단계 평평한 색으로
+                half shade = saturate(fresnel * 0.85 + n * 0.35);
+                half3 col = shade < 0.38 ? _DeepColor.rgb : (shade < 0.62 ? _MidColor.rgb : _EdgeColor.rgb);
 
-                half alpha = _Alpha * saturate(0.22 + fresnel * 0.7 + streak * 0.6 + (n - 0.5) * 0.4);
-                // 안쪽 면은 옅게 (두께감)
-                alpha *= isFront ? 1.0 : 0.45;
-                // 바닥은 물에 섞여 들어가듯 옅게, 꼭대기 근처는 거품처럼 밝게
-                alpha *= smoothstep(0.0, 0.08, i.uv.y);
-                half nearTop = smoothstep(_Rise - 0.18, _Rise - 0.02, i.uv.y);
-                col = lerp(col, _EdgeColor.rgb, nearTop * 0.6);
-                alpha *= rise;
+                // 2) 흰 붓 결: 물줄기 노이즈의 등고선(끝이 또렷한 선) + 진한 곳은 흰 면
+                half lineMask = step(abs(n2 - 0.56), _LineWidth) + step(0.74, n2);
+                col = lerp(col, _EdgeColor.rgb * 1.1, saturate(lineMask) * _StreakAmount * 0.75);
+
+                // 3) 먹 외곽선: 실루엣 쪽(시선과 면이 비스듬한 곳). 굵기를 높이 따라 출렁이고 군데군데 끊김
+                float brush = fbm(float2(i.uv.y * 4.0 - t * 0.3, i.uv.x * 2.0), 2.0);
+                half width = _OutlineWidth * (0.6 + brush * 0.8) * step(0.22, brush);
+                half ink = step(ndv, width) * (isFront ? 1.0 : 0.0);
+
+                // 4) 꼭대기 부서지는 경계에도 먹 선
+                ink = max(ink, step(topDist, 0.025 + brush * 0.02) * step(0.05, i.uv.y));
+                col = lerp(col, _InkColor.rgb, ink);
+
+                // 물은 거의 불투명한 그림처럼, 안쪽 면은 옅게, 바닥은 땅에 섞이게
+                half alpha = _Alpha * (isFront ? 1.0 : 0.5);
+                alpha = max(alpha, ink);
+                alpha *= smoothstep(0.0, 0.06, i.uv.y);
                 return half4(col, alpha);
             }
             ENDHLSL

@@ -26,7 +26,20 @@ public class YanggiHUD : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
         var hud = root.AddComponent<YanggiHUD>();
         var font = Resources.Load<Font>("Fonts/KirangHaerang-Regular");
-        hud.valueText = MakeText(root.transform, font, 46, new Vector2(-40, -36), TextAnchor.UpperRight);
+        // 숫자 뒤 먹 붓 획 (오른쪽에서 왼쪽으로 그은 듯 뒤집음)
+        var back = new GameObject("Brush", typeof(RectTransform), typeof(Image));
+        back.transform.SetParent(root.transform, false);
+        var brt = (RectTransform)back.transform;
+        brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
+        brt.pivot = new Vector2(0.5f, 0.5f);   // 가운데 기준으로 뒤집어야 화면 안에 남음
+        brt.anchoredPosition = new Vector2(-14 - 165, -26 - 40);
+        brt.sizeDelta = new Vector2(330, 80);
+        brt.localScale = new Vector3(-1, 1, 1);
+        var bimg = back.GetComponent<Image>();
+        bimg.sprite = Resources.Load<Sprite>("UI/BrushStroke_Back");
+        bimg.color = new Color(0.92f, 0.88f, 0.78f, 0.85f);   // 체력바 바탕과 같은 종이색 붓 획
+        bimg.raycastTarget = false;
+        hud.valueText = MakeText(root.transform, font, 46, new Vector2(-48, -36), TextAnchor.UpperRight);
         hud.popText = MakeText(root.transform, font, 36, new Vector2(-40, -100), TextAnchor.UpperRight);
         hud.popText.text = "";
         hud.Refresh(GameProgress.Yanggi);

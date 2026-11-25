@@ -35,7 +35,7 @@ public class HealthBarUI : MonoBehaviour
             return;
         }
 
-        float targetRatio = fillImage != null ? fillImage.rectTransform.anchorMax.x : 0f;
+        float targetRatio = fillImage != null ? GetRatio(fillImage) : 0f;
         if (ghostRatio > targetRatio)
         {
             ghostRatio = Mathf.MoveTowards(ghostRatio, targetRatio, ghostCatchUpSpeed * Time.deltaTime);
@@ -75,11 +75,9 @@ public class HealthBarUI : MonoBehaviour
         if (fillImage == null || health == null || health.MaxHealth <= 0f)
             return;
 
-        float oldRatio = fillImage.rectTransform.anchorMax.x;
+        float oldRatio = GetRatio(fillImage);
         float ratio = Mathf.Clamp01(health.CurrentHealth / health.MaxHealth);
-        RectTransform fillRect = fillImage.rectTransform;
-        fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(ratio, 1f);
+        SetRatio(fillImage, ratio);
 
         if (ghostFillImage == null)
             return;
@@ -103,7 +101,7 @@ public class HealthBarUI : MonoBehaviour
         if (fillImage == null)
             return;
 
-        ghostRatio = fillImage.rectTransform.anchorMax.x;
+        ghostRatio = GetRatio(fillImage);
         ghostHoldTimer = 0f;
         SetGhostRatio(ghostRatio);
     }
@@ -113,8 +111,18 @@ public class HealthBarUI : MonoBehaviour
         if (ghostFillImage == null)
             return;
 
-        RectTransform ghostRect = ghostFillImage.rectTransform;
-        ghostRect.anchorMin = new Vector2(0f, 0f);
-        ghostRect.anchorMax = new Vector2(ratio, 1f);
+        SetRatio(ghostFillImage, ratio);
+    }
+
+    // 붓 획 그림(Filled)은 왼쪽부터 잘라 보여 주고, 단색 막대는 예전처럼 폭을 줄인다 (그림이 찌그러지지 않게)
+    private static float GetRatio(Image img) =>
+        img.type == Image.Type.Filled ? img.fillAmount : img.rectTransform.anchorMax.x;
+
+    private static void SetRatio(Image img, float ratio)
+    {
+        if (img.type == Image.Type.Filled) { img.fillAmount = ratio; return; }
+        RectTransform rt = img.rectTransform;
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(ratio, 1f);
     }
 }

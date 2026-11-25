@@ -170,8 +170,11 @@ public class YanggiGhost : MonoBehaviour
         panel.transform.SetParent(root.transform, false);
         var prt = (RectTransform)panel.transform;
         prt.anchorMin = prt.anchorMax = new Vector2(0.5f, 0.2f);
-        prt.sizeDelta = new Vector2(1100, 230);
-        panel.GetComponent<Image>().color = new Color(0.94f, 0.91f, 0.84f, 0.94f);   // 종이색
+        prt.sizeDelta = new Vector2(1150, 290);
+        var bg = panel.GetComponent<Image>();
+        bg.sprite = Resources.Load<Sprite>("UI/Dialog_Paper");   // 먹 붓 테두리 종이 (9칸 나눔, 가운데만 늘어남)
+        if (bg.sprite != null) { bg.type = Image.Type.Sliced; bg.pixelsPerUnitMultiplier = 1.6f; }
+        else bg.color = new Color(0.94f, 0.91f, 0.84f, 0.94f);   // 그림 없으면 예전 종이색
         lineText = Line(prt, font, 40, 60, new Color(0.1f, 0.07f, 0.05f));
         offerText = Line(prt, font, 34, -10, new Color(0.45f, 0.25f, 0.05f));
         keysText = Line(prt, font, 30, -75, new Color(0.62f, 0.08f, 0.07f));

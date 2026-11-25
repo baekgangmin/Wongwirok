@@ -23,8 +23,11 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float runDodgeDuration = 0.6f;
     [SerializeField] private float runDodgeRecovery = 0.17f;
     [SerializeField] private float dodgeCooldown = 0.1f;
-    [Tooltip("구를 때 지나간 자리에 남는 붓 획 (왼쪽 = 먹 머리)")]
+    [Tooltip("구르는 동안 몸 뒤로 따라오는 붓 획 (왼쪽 = 먹 머리)")]
     [SerializeField] private Texture2D dodgeInkTexture;
+    [SerializeField] private float dodgeInkWidth = 0.6f;
+    private SwordSlashTrail dodgeTrail;
+    private Transform dodgeInkA, dodgeInkB;
 
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
@@ -168,6 +171,17 @@ public class PlayerMovement : MonoBehaviour
             animator = GetComponentInChildren<Animator>();
         playerAttack = GetComponent<PlayerAttack>();
         playerParry = GetComponent<PlayerParry>();
+        if (dodgeInkTexture != null)
+        {
+            // 칼날 궤적과 같은 띠를 몸 양옆 두 점 사이에 그린다
+            var go = new GameObject("DodgeInkTrail");
+            go.transform.SetParent(transform, false);
+            dodgeInkA = new GameObject("A").transform; dodgeInkA.SetParent(go.transform, false);
+            dodgeInkB = new GameObject("B").transform; dodgeInkB.SetParent(go.transform, false);
+            dodgeTrail = go.AddComponent<SwordSlashTrail>();
+            dodgeTrail.SetPoints(dodgeInkA, dodgeInkB, 0.4f);   // 칼보다 느려서 꼬리를 길게
+            dodgeTrail.SetTexture(dodgeInkTexture);
+        }
     }
 
     private void Update()
@@ -254,7 +268,8 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
         if (animator != null)
             animator.SetTrigger(animTrigger);
-        SpawnDodgeInk(direction, distance);
+        PlaceDodgeInk(direction);
+        if (dodgeTrail != null) dodgeTrail.SetEmitting(true, true);
 
         // 처음에 빠르고 끝으로 갈수록 느려지게 (구르며 감속)
         float moved = 0f;
@@ -270,8 +285,10 @@ public class PlayerMovement : MonoBehaviour
                 verticalVelocity = -2f;
             verticalVelocity += gravity * Time.deltaTime;
             controller.Move(step + Vector3.up * verticalVelocity * Time.deltaTime);
+            PlaceDodgeInk(direction);
             yield return null;
         }
+        if (dodgeTrail != null) dodgeTrail.SetEmitting(false, false);
 
         IsInvulnerable = false;
         IsDodging = false;
@@ -279,16 +296,18 @@ public class PlayerMovement : MonoBehaviour
         rollRecoverTimer = recovery;
     }
 
-    // 굴러갈 길 위에 붓 획 한 줄: 먹 머리가 가는 쪽, 갈라진 꼬리가 출발점 쪽
-    private void SpawnDodgeInk(Vector3 direction, float distance)
+    // 띠 두 끝점: 허리 높이에서 이동 방향과 카메라 시선 모두에 수직 (어느 쪽으로 굴러도 화면에 넓게 보이게)
+    private void PlaceDodgeInk(Vector3 direction)
     {
-        var cam = Camera.main;
-        if (dodgeInkTexture == null || cam == null)
+        if (dodgeTrail == null)
             return;
-        Vector3 p = transform.position + direction * distance * 0.4f + Vector3.up * 0.6f;
-        Vector3 a = cam.WorldToScreenPoint(p), b = cam.WorldToScreenPoint(p + direction);
-        float roll = Mathf.Atan2(b.y - a.y, b.x - a.x) * Mathf.Rad2Deg + 180f;
-        InkFxSprite.Spawn(dodgeInkTexture, p, distance * 0.22f, roll, false, 0.45f, 0.15f, Color.white);
+        Vector3 view = cameraTransform != null ? cameraTransform.forward : Vector3.forward;
+        Vector3 side = Vector3.Cross(direction, view);
+        if (side.sqrMagnitude < 0.01f) side = Vector3.up;
+        side = side.normalized * dodgeInkWidth * 0.5f;
+        Vector3 c = transform.position;   // 캐릭터 중심 = 허리 높이, 뼈를 안 따라가서 출렁이지 않음
+        dodgeInkA.position = c - side;
+        dodgeInkB.position = c + side;
     }
 
     private void ApplyGravityOnly()

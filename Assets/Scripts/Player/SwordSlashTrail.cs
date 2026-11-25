@@ -49,6 +49,14 @@ public class SwordSlashTrail : MonoBehaviour
         return true;
     }
 
+    // 칼이 아닌 곳(구르기 잔상)에서 띠의 두 끝점을 코드로 정할 때
+    public void SetPoints(Transform basePoint, Transform tipPoint, float life)
+    {
+        bladeBase = basePoint;
+        bladeTip = tipPoint;
+        lifetime = strongLifetime = life;
+    }
+
     public void SetColor(Gradient gradient)
     {
         if (gradient != null)

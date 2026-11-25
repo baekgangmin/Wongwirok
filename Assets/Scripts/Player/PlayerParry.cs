@@ -18,6 +18,8 @@ public class PlayerParry : MonoBehaviour
 
     [Header("패링 성공 연출")]
     [SerializeField] private ParticleSystem successEffectPrefab;
+    [Tooltip("넣으면 불꽃 입자 대신 붓 그림 섬광")]
+    [SerializeField] private Texture2D successInkTexture;
     [SerializeField] private Color successEffectColor = new Color(1f, 0.85f, 0.45f, 1f);
     [SerializeField] private float successEffectScale = 2f;
     [SerializeField] private float successStopDuration = 0.12f;
@@ -110,7 +112,9 @@ public class PlayerParry : MonoBehaviour
         if (slashTrail != null && slashTrail.TryGetBladeMidPoint(out Vector3 blade))
             point = blade;
 
-        if (successEffectPrefab != null)
+        if (successInkTexture != null)
+            InkFxSprite.Spawn(successInkTexture, point, 1.8f, Random.Range(0f, 360f), false, 0.4f, 0.6f, Color.white);
+        else if (successEffectPrefab != null)
         {
             Vector3 toEnemy = enemyCenter - point;
             Quaternion rot = toEnemy.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(-toEnemy.normalized) : Quaternion.LookRotation(-transform.forward);

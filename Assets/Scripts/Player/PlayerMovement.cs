@@ -23,6 +23,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float runDodgeDuration = 0.6f;
     [SerializeField] private float runDodgeRecovery = 0.17f;
     [SerializeField] private float dodgeCooldown = 0.1f;
+    [Tooltip("구를 때 지나간 자리에 남는 붓 획 (왼쪽 = 먹 머리)")]
+    [SerializeField] private Texture2D dodgeInkTexture;
 
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
@@ -252,6 +254,7 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
         if (animator != null)
             animator.SetTrigger(animTrigger);
+        SpawnDodgeInk(direction, distance);
 
         // 처음에 빠르고 끝으로 갈수록 느려지게 (구르며 감속)
         float moved = 0f;
@@ -274,6 +277,18 @@ public class PlayerMovement : MonoBehaviour
         IsDodging = false;
         LastDodgeEndTime = Time.time;
         rollRecoverTimer = recovery;
+    }
+
+    // 굴러갈 길 위에 붓 획 한 줄: 먹 머리가 가는 쪽, 갈라진 꼬리가 출발점 쪽
+    private void SpawnDodgeInk(Vector3 direction, float distance)
+    {
+        var cam = Camera.main;
+        if (dodgeInkTexture == null || cam == null)
+            return;
+        Vector3 p = transform.position + direction * distance * 0.4f + Vector3.up * 0.6f;
+        Vector3 a = cam.WorldToScreenPoint(p), b = cam.WorldToScreenPoint(p + direction);
+        float roll = Mathf.Atan2(b.y - a.y, b.x - a.x) * Mathf.Rad2Deg + 180f;
+        InkFxSprite.Spawn(dodgeInkTexture, p, distance * 0.22f, roll, false, 0.45f, 0.15f, Color.white);
     }
 
     private void ApplyGravityOnly()

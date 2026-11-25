@@ -25,6 +25,8 @@ public class PlayerHitFeedback : MonoBehaviour
     [Header("붉은 파편 (적중 효과 재사용)")]
     [SerializeField] private ParticleSystem hitSparkPrefab;
     [SerializeField] private Color sparkColor = new Color(0.9f, 0.05f, 0.05f, 1f);
+    [Tooltip("넣으면 붉은 파편 대신 붓 그림 먹물이 터짐")]
+    [SerializeField] private Texture2D hitInkTexture;
 
     [Header("References")]
     [SerializeField] private PlayerHealth playerHealth;
@@ -308,6 +310,11 @@ public class PlayerHitFeedback : MonoBehaviour
     // ---------- 붉은 파편 ----------
     private void SpawnSparks(Vector3 p)
     {
+        if (hitInkTexture != null)
+        {
+            InkFxSprite.Spawn(hitInkTexture, p, 1.4f, Random.Range(-30f, 30f), Random.value < 0.5f, 0.45f, 0.5f, Color.white);
+            return;
+        }
         if (hitSparkPrefab == null)
             return;
         Camera cam = Camera.main;

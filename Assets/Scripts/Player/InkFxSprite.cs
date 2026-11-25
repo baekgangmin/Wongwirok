@@ -25,7 +25,8 @@ public class InkFxSprite : MonoBehaviour
         fx.mat.color = tint;
         go.GetComponent<Renderer>().sharedMaterial = fx.mat;
         go.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        fx.baseScale = new Vector3(mirror ? -size : size, size, 1f);
+        float w = size * tex.width / tex.height;   // 가로로 긴 그림(회피 잔상)은 비율 그대로
+        fx.baseScale = new Vector3(mirror ? -w : w, size, 1f);
         fx.startScale = 1f - grow * 0.5f; fx.endScale = 1f + grow * 0.5f;
         fx.life = life;
         go.transform.localScale = fx.baseScale * fx.startScale;

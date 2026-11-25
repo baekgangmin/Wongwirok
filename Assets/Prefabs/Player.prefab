@@ -3678,6 +3678,7 @@ MonoBehaviour:
   runDodgeDuration: 0.6
   runDodgeRecovery: 0.17
   dodgeCooldown: 0.1
+  dodgeInkTexture: {fileID: 2800000, guid: 6f4835c507ed2ce4885213b33198eb67, type: 3}
   cameraTransform: {fileID: 0}
   animator: {fileID: 0}
 --- !u!114 &4916929217770473032
@@ -3809,6 +3810,7 @@ MonoBehaviour:
   animator: {fileID: 0}
   poseLockTime: 0.4
   successEffectPrefab: {fileID: 7755463698786477256, guid: f19bed641db259341ae58c68119b27bf, type: 3}
+  successInkTexture: {fileID: 2800000, guid: 41cef35fc43533a41bde4e1e485a4da5, type: 3}
   successEffectColor: {r: 1, g: 0.85, b: 0.45, a: 1}
   successEffectScale: 2
   successStopDuration: 0.12
@@ -3853,6 +3855,7 @@ MonoBehaviour:
   clawLifetime: 0.35
   hitSparkPrefab: {fileID: 7755463698786477256, guid: f19bed641db259341ae58c68119b27bf, type: 3}
   sparkColor: {r: 0.9, g: 0.05, b: 0.05, a: 1}
+  hitInkTexture: {fileID: 2800000, guid: f136b51e56565db46aa1adde6a597c28, type: 3}
   playerHealth: {fileID: 0}
   playerMovement: {fileID: 0}
   hitPoint: {fileID: 0}

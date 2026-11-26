@@ -39,6 +39,7 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
 
     private EnemyHealth health;
     private Color baseColor;
+    private RendererTint tint;   // 셰이더마다 색 이름이 달라서 (_BaseColor, _Color ...) 공용 도우미로 칠함
     private bool isBusy;
 
     private void Awake()
@@ -47,7 +48,7 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
         if (targetRenderer == null)
             targetRenderer = GetComponentInChildren<Renderer>();
         if (targetRenderer != null)
-            baseColor = targetRenderer.material.color;
+        { tint = new RendererTint(targetRenderer); baseColor = tint.BaseColor; }
 
         if (player == null)
         {
@@ -125,7 +126,7 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
 
     private void SetColor(Color color)
     {
-        if (targetRenderer != null)
-            targetRenderer.material.color = color;
+        if (tint != null && tint.IsValid)
+            tint.Set(color);
     }
 }

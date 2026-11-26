@@ -80,11 +80,20 @@ public class EnemyAnimationDriver : MonoBehaviour
             animator.SetFloat(SpeedId, fullWalkSpeed > 0f ? speed / fullWalkSpeed : 0f, 0.1f, dt);
     }
 
-    public void PlayAttack()
+    public void PlayAttack() => PlayAttack(false);
+
+    // alt: 연타에서 반대 손 공격 (애니메이터에 AttackR 이 있을 때만, 없으면 평소 공격)
+    public void PlayAttack(bool alt)
     {
-        if (animator != null && !health.IsDead)
-            animator.SetTrigger(AttackId);
+        if (animator == null || health.IsDead)
+            return;
+        bool hasAlt = false;
+        foreach (var p in animator.parameters)
+            if (p.nameHash == AttackRId) { hasAlt = true; break; }
+        animator.SetTrigger(alt && hasAlt ? AttackRId : AttackId);
     }
+
+    private static readonly int AttackRId = Animator.StringToHash("AttackR");
 
     // 패링 당했을 때 등 외부에서 움찔을 강제로 재생
     public void PlayHit(bool knockback)

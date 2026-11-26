@@ -20,8 +20,12 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private float attackCooldown = 0.8f;
     [Tooltip("한 번 공격에 연달아 휘두르는 횟수 (2 이상이면 연타)")]
     [SerializeField] private int comboCount = 1;
-    [Tooltip("연타 사이 짧은 예고 시간")]
+    [Tooltip("연타에서 반대 손 공격이 맞는 순간까지 (같은 손은 telegraphDuration)")]
     [SerializeField] private float comboGap = 0.25f;
+    [Tooltip("연타에서 앞 공격이 맞은 뒤 다음 공격을 시작하기까지 쉬는 틈 (공격이 서로 묻히지 않게)")]
+    [SerializeField] private float comboPause = 0f;
+    [Tooltip("연타에서 번갈아 쓰는 반대 손 (예고 효과 위치)")]
+    [SerializeField] private HumanBodyBones otherHand = HumanBodyBones.RightHand;
 
     [Header("On-Hit Effect")]
     [SerializeField] private bool slowsPlayerInsteadOfDamage = false;
@@ -150,7 +154,7 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
             animationDriver.PlayAttack();
 
         if (telegraphEffectPrefab != null)
-            StartTelegraphEffect();
+            StartTelegraphEffect(telegraphHand);
         else
             SetColor(telegraphColor);
         yield return new WaitForSeconds(telegraphDuration);
@@ -160,14 +164,19 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         {
             if (swing > 0)
             {
-                // 연타: 다시 주인공 쪽을 보고 짧게 예고한 뒤 또 휘두름
+                // 연타: 다시 주인공 쪽을 보고 손을 번갈아 휘두름 (홀수 번째 = 반대 손, 애니메이터에 AttackR 이 있으면)
+                if (comboPause > 0f)
+                    yield return new WaitForSeconds(comboPause);
                 Vector3 to = player.position - transform.position; to.y = 0f;
                 if (to.sqrMagnitude > 0.0001f)
                     transform.rotation = Quaternion.LookRotation(to.normalized, Vector3.up);
-                SetColor(telegraphColor);
+                bool alt = swing % 2 == 1;
                 if (animationDriver != null)
-                    animationDriver.PlayAttack();
-                yield return new WaitForSeconds(comboGap);
+                    animationDriver.PlayAttack(alt);
+                // 이어지는 타격엔 예고 효과를 띄우지 않음 (손에 뜨는 붉은 기운이 주먹 동작을 가려서)
+                if (telegraphEffectPrefab == null)
+                    SetColor(telegraphColor);
+                yield return new WaitForSeconds(alt ? comboGap : telegraphDuration);   // 같은 손은 첫 공격과 같은 타이밍
             }
 
             IsAttackActive = true;
@@ -351,9 +360,9 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         Gizmos.DrawLine(prev, c);
     }
 
-    private void StartTelegraphEffect()
+    private void StartTelegraphEffect(HumanBodyBones handBone)
     {
-        Transform hand = animator != null && animator.isHuman ? animator.GetBoneTransform(telegraphHand) : null;
+        Transform hand = animator != null && animator.isHuman ? animator.GetBoneTransform(handBone) : null;
         Transform parent = hand != null ? hand : transform;
         activeTelegraph = Instantiate(telegraphEffectPrefab, parent);
         activeTelegraph.transform.localPosition = Vector3.zero;

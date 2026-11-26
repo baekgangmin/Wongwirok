@@ -18,6 +18,10 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
     [SerializeField] private float hitAngle = 100f;
     [Tooltip("공격이 끝난 뒤 다음 공격까지 쉬는 시간 (이 틈에 맞으면 움찔한다)")]
     [SerializeField] private float attackCooldown = 0.8f;
+    [Tooltip("한 번 공격에 연달아 휘두르는 횟수 (2 이상이면 연타)")]
+    [SerializeField] private int comboCount = 1;
+    [Tooltip("연타 사이 짧은 예고 시간")]
+    [SerializeField] private float comboGap = 0.25f;
 
     [Header("On-Hit Effect")]
     [SerializeField] private bool slowsPlayerInsteadOfDamage = false;
@@ -152,19 +156,45 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
         yield return new WaitForSeconds(telegraphDuration);
         StopTelegraphEffect();
 
-        IsAttackActive = true;
-        if (slashMaterial != null)
-            StartCoroutine(SlashRoutine());
-        yield return new WaitForSeconds(activeDuration);
-        IsAttackActive = false;
-
-        if (health.IsDead)
+        for (int swing = 0; swing < Mathf.Max(1, comboCount); swing++)
         {
-            // 공격 도중 죽으면 피해를 주지 않는다
-            SetColor(baseColor);
-            yield break;
+            if (swing > 0)
+            {
+                // 연타: 다시 주인공 쪽을 보고 짧게 예고한 뒤 또 휘두름
+                Vector3 to = player.position - transform.position; to.y = 0f;
+                if (to.sqrMagnitude > 0.0001f)
+                    transform.rotation = Quaternion.LookRotation(to.normalized, Vector3.up);
+                SetColor(telegraphColor);
+                if (animationDriver != null)
+                    animationDriver.PlayAttack();
+                yield return new WaitForSeconds(comboGap);
+            }
+
+            IsAttackActive = true;
+            if (slashMaterial != null)
+                StartCoroutine(SlashRoutine());
+            yield return new WaitForSeconds(activeDuration);
+            IsAttackActive = false;
+
+            if (health.IsDead)
+            {
+                // 공격 도중 죽으면 피해를 주지 않는다
+                SetColor(baseColor);
+                yield break;
+            }
+
+            ResolveHit();
         }
 
+        SetColor(baseColor);
+        yield return new WaitForSeconds(recoveryDuration);
+
+        isBusy = false;
+        cooldownTimer = attackCooldown;
+    }
+
+    private void ResolveHit()
+    {
         bool playerInvulnerable = playerMovement != null && playerMovement.IsInvulnerable;
         if (!PlayerInHitArc())
         {
@@ -185,12 +215,6 @@ public class EnemyAttack : MonoBehaviour, IEnemyAttack
             if (hitStopDuration > 0f && Time.timeScale >= 0.99f)
                 StartCoroutine(HitStop());
         }
-
-        SetColor(baseColor);
-        yield return new WaitForSeconds(recoveryDuration);
-
-        isBusy = false;
-        cooldownTimer = attackCooldown;
     }
 
     // 할퀴는 순간 몸 앞에 그림 한 장: 카메라를 보며 붓으로 긋듯 한쪽부터 펼쳐졌다가 사라지고, 먹이 튐

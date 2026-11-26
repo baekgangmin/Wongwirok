@@ -12,6 +12,10 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
     [Header("Projectile")]
     [SerializeField] private float projectileSpeed = 8f;
     [SerializeField] private float projectileDamage = 8f;
+    [Tooltip("한 번에 쏘는 개수 (2 이상이면 부채꼴로 퍼짐)")]
+    [SerializeField] private int projectileCount = 1;
+    [Tooltip("부채꼴 전체 각도 (도)")]
+    [SerializeField] private float spreadAngle = 0f;
 
     [Header("Projectile Visual")]
     [Tooltip("날아가는 불덩이 모양 (비워두면 기본 공)")]
@@ -113,15 +117,21 @@ public class EnemyRangedAttack : MonoBehaviour, IEnemyAttack
             return;
 
         Vector3 spawnPosition = transform.position + Vector3.up * 1f;
-        Vector3 direction = (player.position - spawnPosition).normalized;
+        Vector3 aim = (player.position - spawnPosition).normalized;
+        int count = Mathf.Max(1, projectileCount);
+        for (int i = 0; i < count; i++)
+        {
+            float a = count > 1 ? Mathf.Lerp(-spreadAngle * 0.5f, spreadAngle * 0.5f, i / (count - 1f)) : 0f;
+            Vector3 direction = Quaternion.AngleAxis(a, Vector3.up) * aim;   // 주인공 쪽을 가운데로 좌우로 퍼짐
 
-        GameObject projectileObject = new GameObject("EnemyProjectile");
-        projectileObject.transform.position = spawnPosition;
+            GameObject projectileObject = new GameObject("EnemyProjectile");
+            projectileObject.transform.position = spawnPosition;
 
-        EnemyProjectile projectile = projectileObject.AddComponent<EnemyProjectile>();
-        projectile.Launch(direction, projectileSpeed, projectileDamage, projectileVisualPrefab, impactEffectPrefab, projectileColor, transform);
-        if (hitMarkMaterial != null || hitFrameTexture != null)
-            projectile.SetHitStyle(projectileColor, hitSecondColor, hitMarkMaterial, impactEffectPrefab, hitFrameTexture);
+            EnemyProjectile projectile = projectileObject.AddComponent<EnemyProjectile>();
+            projectile.Launch(direction, projectileSpeed, projectileDamage, projectileVisualPrefab, impactEffectPrefab, projectileColor, transform);
+            if (hitMarkMaterial != null || hitFrameTexture != null)
+                projectile.SetHitStyle(projectileColor, hitSecondColor, hitMarkMaterial, impactEffectPrefab, hitFrameTexture);
+        }
     }
 
     private void SetColor(Color color)

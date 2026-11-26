@@ -772,6 +772,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 448338431}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &107173215
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 107173216}
+  m_Layer: 0
+  m_Name: RopeTie_CorridorEnd
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &107173216
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 107173215}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.9, y: 0.9, z: 0.6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 455412733}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &112231453
 GameObject:
   m_ObjectHideFlags: 0
@@ -3413,7 +3444,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 6a468e96130fd8f4fa3c180532e579a9, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000004371139
+      value: -0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 6a468e96130fd8f4fa3c180532e579a9, type: 3}
       propertyPath: m_LocalRotation.x
@@ -3421,7 +3452,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 6a468e96130fd8f4fa3c180532e579a9, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 6a468e96130fd8f4fa3c180532e579a9, type: 3}
       propertyPath: m_LocalRotation.z
@@ -3912,6 +3943,63 @@ Transform:
   - {fileID: 1783936926}
   - {fileID: 647014065}
   m_Father: {fileID: 467855874}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &455412731
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 455412733}
+  - component: {fileID: 455412732}
+  m_Layer: 0
+  m_Name: "CorridorRopeReturn (\uBCF5\uB3C4 \uB05D \uBC27\uC904)"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &455412732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 455412731}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e80dfd97778c4c4c9e9be53f8018f9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GhostRopeReturn
+  ropeMaterial: {fileID: 2100000, guid: 463bbf4f997657144b9df720b5ce6484, type: 2}
+  bossHealth: {fileID: 0}
+  fixedAnchor: {fileID: 107173216}
+  humanScene: HumanWorld_01
+  defaultAnchor: {x: 6, y: -1.57, z: 19}
+  defaultReturnPoint: {x: 60.5, y: 0, z: -60}
+  defaultReturnYaw: 90
+  dragStartSpeed: 3
+  dragMaxSpeed: 14
+  dragAccel: 9
+  ghostWaterTint: {r: 0.35, g: 0.1, b: 0.05, a: 1}
+  humanTint: {r: 0.55, g: 0.72, b: 0.8, a: 1}
+--- !u!4 &455412733
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 455412731}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 107173216}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &457386410
 GameObject:
@@ -9243,7 +9331,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 196c97788b007a64789b836273c0026a, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000004371139
+      value: -0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 196c97788b007a64789b836273c0026a, type: 3}
       propertyPath: m_LocalRotation.x
@@ -9251,7 +9339,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 196c97788b007a64789b836273c0026a, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: -2615226900936063861, guid: 196c97788b007a64789b836273c0026a, type: 3}
       propertyPath: m_LocalRotation.z
@@ -9964,11 +10052,7 @@ MonoBehaviour:
   riseDepth: 2.2
   riseTime: 1.2
   waveGap: 1.5
-  returnDelay: 3.5
-  humanScene: HumanWorld_01
-  defaultReturnPoint: {x: 60.5, y: 0, z: -60}
-  waterTint: {r: 0.35, g: 0.1, b: 0.05, a: 1}
-  humanTint: {r: 0.55, g: 0.72, b: 0.8, a: 1}
+  ropeReturn: {fileID: 455412732}
 --- !u!4 &1140342884
 Transform:
   m_ObjectHideFlags: 0
@@ -20229,3 +20313,4 @@ SceneRoots:
   - {fileID: 1128531901}
   - {fileID: 407308247}
   - {fileID: 1140342884}
+  - {fileID: 455412733}

@@ -8,7 +8,9 @@ using UnityEngine.InputSystem;
 public class GhostRopeReturn : MonoBehaviour
 {
     [SerializeField] private Material ropeMaterial;
-    [SerializeField] private EnemyHealth bossHealth;
+    [SerializeField] private EnemyHealth bossHealth;   // 비워 두면 Unlock() 으로 연다 (2스테이지: 궁녀를 다 쓰러뜨린 뒤)
+    [Tooltip("있으면 밧줄이 물속 대신 이 자리에 묶여 있다 (2스테이지 복도 끝)")]
+    [SerializeField] private Transform fixedAnchor;
     [SerializeField] private string humanScene = "HumanWorld_01";
     [Header("이 씬에서 바로 시작했을 때 쓸 기본값 (테스트용)")]
     [SerializeField] private Vector3 defaultAnchor = new Vector3(6f, -1.57f, 19f);
@@ -41,7 +43,7 @@ public class GhostRopeReturn : MonoBehaviour
         }
         anchor = new GameObject("RopeAnchor").transform;
         anchor.SetParent(transform, false);
-        anchor.position = RopeSession.GhostAnchor;
+        anchor.position = fixedAnchor != null ? fixedAnchor.position : RopeSession.GhostAnchor;
 
         rope = RopeLine.Create(transform, ropeMaterial);
         rope.startPoint = anchor;
@@ -55,6 +57,8 @@ public class GhostRopeReturn : MonoBehaviour
             bossHealth.OnDeath += () => bossDead = true;
         }
     }
+
+    public void Unlock() => bossDead = true;
 
     private void Update()
     {
@@ -96,7 +100,8 @@ public class GhostRopeReturn : MonoBehaviour
             speed = Mathf.Min(dragMaxSpeed, speed + dragAccel * Time.deltaTime);
             Vector3 dir = to / dist;
             Vector3 next = p.position + dir * Mathf.Min(dist, speed * Time.deltaTime);
-            next.y = WorldTransition.GroundHeight(next) + 1.05f;
+            // 지형이 없는 곳(2스테이지 궁궐 안)에선 GroundHeight 가 넣은 높이를 그대로 돌려주므로 발 높이로 물어 높이를 유지
+            next.y = WorldTransition.GroundHeight(next + Vector3.down * 1.05f) + 1.05f;
             p.SetPositionAndRotation(next, Quaternion.LookRotation(-dir, Vector3.up));
             yield return null;
         }

@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 // 2스테이지 흐름: 복도 잡몹을 모두 베면 침전에 13궁녀가 세 무리(5/4/4)로 차례차례 바닥에서 솟아오른다.
-// 마지막 무리까지 쓰러뜨리면 2스테이지를 깬 것으로 기록하고, 잠시 뒤 마을 우물 앞으로 돌아간다.
+// 마지막 무리까지 쓰러뜨리면 2스테이지를 깬 것으로 기록하고, 복도 끝 밧줄을 당겨 마을 우물 앞으로 돌아갈 수 있게 된다.
 public class Stage2Director : MonoBehaviour
 {
     [SerializeField] private Transform corridorMobs;     // 복도 잡몹들의 부모
@@ -10,11 +10,7 @@ public class Stage2Director : MonoBehaviour
     [SerializeField] private float riseDepth = 2.2f;
     [SerializeField] private float riseTime = 1.2f;
     [SerializeField] private float waveGap = 1.5f;
-    [SerializeField] private float returnDelay = 3.5f;   // 양기가 숫자로 다 날아갈 시간
-    [SerializeField] private string humanScene = "HumanWorld_01";
-    [SerializeField] private Vector3 defaultReturnPoint = new Vector3(60.5f, 0f, -60f);   // 우물 앞 (이 씬에서 바로 시작했을 때)
-    [SerializeField] private Color waterTint = new Color(0.35f, 0.1f, 0.05f, 1f);
-    [SerializeField] private Color humanTint = new Color(0.55f, 0.72f, 0.8f, 1f);
+    [SerializeField] private GhostRopeReturn ropeReturn;   // 다 쓰러뜨리면 복도 끝 밧줄을 당길 수 있게 됨
 
     private Transform current;   // 지금 싸우는 무리 (처음엔 복도)
     private int nextWave;
@@ -68,8 +64,7 @@ public class Stage2Director : MonoBehaviour
         busy = true;
         current = null;
         GameProgress.Stage2Cleared = true;
-        yield return new WaitForSeconds(returnDelay);
-        Vector3 back = RopeSession.HumanReturnPoint != Vector3.zero ? RopeSession.HumanReturnPoint : defaultReturnPoint;
-        WorldTransition.Begin(humanScene, back, RopeSession.HumanReturnPoint != Vector3.zero ? RopeSession.HumanReturnYaw : 90f, waterTint, humanTint, false);
+        if (ropeReturn != null) ropeReturn.Unlock();
+        yield break;
     }
 }

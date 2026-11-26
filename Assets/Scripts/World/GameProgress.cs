@@ -4,6 +4,7 @@ using UnityEngine;
 public static class GameProgress
 {
     private const string Stage1Key = "wongwirok_stage1_cleared";
+    private const string Stage2Key = "wongwirok_stage2_cleared";
 
     public static bool Stage1Cleared
     {
@@ -11,9 +12,16 @@ public static class GameProgress
         set { PlayerPrefs.SetInt(Stage1Key, value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    public static bool Stage2Cleared
+    {
+        get => PlayerPrefs.GetInt(Stage2Key, 0) == 1;
+        set { PlayerPrefs.SetInt(Stage2Key, value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     public static void ResetAll()
     {
         PlayerPrefs.DeleteKey(Stage1Key);
+        PlayerPrefs.DeleteKey(Stage2Key);
         PlayerPrefs.Save();
     }
 

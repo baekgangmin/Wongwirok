@@ -1,11 +1,16 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
 // 화면 오른쪽 위 양기 수치. 얻거나 잃으면 "+12" / "-40" 이 떠올랐다 사라진다.
 // 씬에 따로 두지 않아도 게임이 시작되면 스스로 하나 만들어 계속 유지된다.
+// 적을 쓰러뜨려 얻은 양기는 푸른 양기 덩이(플립북)가 날아와 숫자에 닿을 때마다 조금씩 올라간다.
 public class YanggiHUD : MonoBehaviour
 {
+    private static YanggiHUD instance;
+    private static Sprite[] orbFrames;
     private Text valueText;
+    private int held;   // 이미 저장됐지만 덩이가 아직 날아오는 중이라 숫자에 안 보탠 양
     private Text popText;
     private float popTimer;
     private const float PopTime = 1.2f;
@@ -25,6 +30,9 @@ public class YanggiHUD : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         var hud = root.AddComponent<YanggiHUD>();
+        instance = hud;
+        orbFrames = new Sprite[4];
+        for (int i = 0; i < 4; i++) orbFrames[i] = Resources.Load<Sprite>("UI/YanggiOrb_" + i);
         var font = Resources.Load<Font>("Fonts/KirangHaerang-Regular");
         // 숫자 뒤 먹 붓 획 (오른쪽에서 왼쪽으로 그은 듯 뒤집음)
         var back = new GameObject("Brush", typeof(RectTransform), typeof(Image));
@@ -71,10 +79,87 @@ public class YanggiHUD : MonoBehaviour
         popTimer = PopTime;
     }
 
-    private void Refresh(int now) => valueText.text = "양기  " + now;
+    private void Refresh(int now) => valueText.text = "양기  " + (now - held);
+
+    // 쓰러진 몬스터 몸에서 양기 덩이가 피어올라 몸 위에 잠깐 모여 떠 있다가, 한 줄로 차례차례 오른쪽 위 숫자로 흘러 들어간다.
+    // 반드시 GameProgress.AddYanggi 보다 먼저 부를 것 (숫자를 덩이가 도착할 때까지 붙잡아 둠).
+    public static void FlyFrom(Vector3 worldPos, int amount)
+    {
+        if (instance == null || Camera.main == null || amount <= 0 || orbFrames[0] == null)
+            return;
+        int count = Mathf.Clamp(amount / 6, 3, 8);
+        instance.held += amount;
+        for (int i = 0; i < count; i++)
+        {
+            int share = amount / count + (i < amount % count ? 1 : 0);
+            instance.StartCoroutine(instance.Orb(worldPos, share, i));
+        }
+    }
+
+    private IEnumerator Orb(Vector3 body, int share, int index)
+    {
+        const float RiseT = 0.5f, HoverEnd = 1.5f, FlowGap = 0.12f, FlyT = 0.85f;
+        var go = new GameObject("YanggiOrb", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = Vector2.zero;   // 왼쪽 아래 기준 = 화면 좌표
+        rt.sizeDelta = new Vector2(70, 70);
+        var img = go.GetComponent<Image>();
+        img.raycastTarget = false;
+        img.enabled = false;
+        float scale = ((RectTransform)transform).localScale.x;   // 캔버스 배율 (화면 → 캔버스 좌표)
+        // 몸 위에서 모여 떠 있을 자리 (월드 좌표라 카메라가 움직여도 몬스터 위에 붙어 있음)
+        Vector2 ring = Random.insideUnitCircle * 0.6f;
+        Vector3 hover = body + new Vector3(ring.x, Random.Range(1.0f, 1.6f), ring.y);
+        float riseStart = index * 0.07f;                  // 몸에서 하나씩 스며 나옴
+        float flyStart = HoverEnd + index * FlowGap;      // 한 줄로 차례차례 흘러감
+        int frame = Random.Range(0, 4);
+        float t = 0f;
+        Vector2 from = Vector2.zero;
+        bool flying = false;
+        while (true)
+        {
+            t += Time.unscaledDeltaTime;
+            img.sprite = orbFrames[(frame + (int)(Time.unscaledTime * 12f)) % 4];   // 플립북 초당 12장
+            Vector2 end = (Vector2)valueText.rectTransform.position / scale + new Vector2(-90f, -25f);   // "양기" 글자 근처
+            if (t < flyStart)
+            {
+                if (t < riseStart) { yield return null; continue; }
+                float k = Mathf.Clamp01((t - riseStart) / RiseT);
+                Vector3 w = Vector3.Lerp(body, hover, 1f - (1f - k) * (1f - k))
+                            + Vector3.up * (k >= 1f ? Mathf.Sin(t * 4f + index) * 0.08f : 0f);   // 다 오르면 둥실
+                var cam = Camera.main;
+                Vector3 sp = cam != null ? cam.WorldToScreenPoint(w) : new Vector3(0, 0, -1);
+                img.enabled = sp.z > 0f;   // 카메라 뒤면 잠깐 숨김
+                rt.anchoredPosition = (Vector2)sp / scale;
+                rt.localScale = Vector3.one * Mathf.Lerp(0.4f, 1f, k);
+            }
+            else
+            {
+                if (!flying) { flying = true; from = rt.anchoredPosition; img.enabled = true; }
+                float k = Mathf.Clamp01((t - flyStart) / FlyT);
+                Vector2 mid = Vector2.Lerp(from, end, 0.5f) + Vector2.left * 120f;   // 살짝 휘어 들어감
+                Vector2 prev = rt.anchoredPosition;
+                float e = k * k;
+                rt.anchoredPosition = Vector2.Lerp(Vector2.Lerp(from, mid, e), Vector2.Lerp(mid, end, e), e);
+                Vector2 v = rt.anchoredPosition - prev;
+                if (v.sqrMagnitude > 0.01f)   // 아래쪽(둥근 몸)이 날아가는 방향, 꼬리가 뒤로
+                    rt.localRotation = Quaternion.Slerp(rt.localRotation, Quaternion.Euler(0, 0, Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg + 90f), Time.unscaledDeltaTime * 12f);
+                rt.localScale = Vector3.one * Mathf.Lerp(1f, 0.55f, k);
+                if (k >= 1f) break;
+            }
+            yield return null;
+        }
+        Destroy(go);
+        held = Mathf.Max(0, held - share);
+        Refresh(GameProgress.Yanggi);
+        valueText.rectTransform.localScale = Vector3.one * 1.15f;   // 닿을 때 숫자가 톡 튐
+    }
 
     private void Update()
     {
+        var vs = valueText.rectTransform.localScale.x;
+        if (vs > 1f) valueText.rectTransform.localScale = Vector3.one * Mathf.MoveTowards(vs, 1f, Time.unscaledDeltaTime * 1.5f);
         if (popTimer <= 0f) return;
         popTimer -= Time.unscaledDeltaTime;
         float k = 1f - popTimer / PopTime;

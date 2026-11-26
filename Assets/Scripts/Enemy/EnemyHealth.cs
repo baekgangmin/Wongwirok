@@ -33,7 +33,12 @@ public class EnemyHealth : MonoBehaviour, IHealth
         {
             IsDead = true;
             if (yanggiDrop.y > 0)
-                GameProgress.AddYanggi(UnityEngine.Random.Range(yanggiDrop.x, yanggiDrop.y + 1));
+            {
+                int gain = UnityEngine.Random.Range(yanggiDrop.x, yanggiDrop.y + 1);
+                var r = GetComponentInChildren<Renderer>();
+                YanggiHUD.FlyFrom(r != null ? r.bounds.center : transform.position, gain);   // 저장보다 먼저: 덩이가 닿을 때 숫자가 오름
+                GameProgress.AddYanggi(gain);
+            }
             SpawnDeathInk();
             OnDeath?.Invoke();
         }

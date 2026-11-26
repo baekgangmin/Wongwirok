@@ -7179,7 +7179,7 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 5f35d43ea5d447d4e8dc85af8fbb7990, type: 3}
   size: 0.55
   life: 0.5
-  minSpeed: 0.7
+  minSpeed: 0.3
 --- !u!1001 &7438736610067568063
 PrefabInstance:
   m_ObjectHideFlags: 0

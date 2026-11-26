@@ -7,7 +7,7 @@ public class WellEntry : MonoBehaviour
 {
     [SerializeField] private float radius = 2.5f;
     [SerializeField] private string ghostScene = "BossMap_02";
-    [SerializeField] private Vector3 arrivalPoint = new Vector3(0f, 0f, 2f);
+    [SerializeField] private Vector3 arrivalPoint = new Vector3(0f, 0f, 6f);
     [Tooltip("우물 물빛: 붉은 불빛이 비친 물 (1스테이지 연못의 푸른 물과 구분)")]
     [SerializeField] private Color waterTint = new Color(0.35f, 0.1f, 0.05f, 1f);
     [SerializeField] private Color worldTint = new Color(0.42f, 0.03f, 0.03f, 1f);

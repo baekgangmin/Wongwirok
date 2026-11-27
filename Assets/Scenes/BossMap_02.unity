@@ -909,7 +909,7 @@ Transform:
   m_GameObject: {fileID: 107173215}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.9, y: 0.9, z: 0.6}
+  m_LocalPosition: {x: 2, y: 0.9, z: 6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4897,7 +4897,7 @@ MonoBehaviour:
   projectileSpeed: 8
   projectileDamage: 10.4
   projectileCount: 5
-  spreadAngle: 60
+  spreadAngle: 36
   projectileVisualPrefab: {fileID: 5686664197912667081, guid: 523c8221b69364548a7bc924af655308, type: 3}
   impactEffectPrefab: {fileID: 2144055660164847522, guid: 482f70e3c92f6b247a1ba3407f9fcbfb, type: 3}
   projectileColor: {r: 1, g: 0.45, b: 0.1, a: 1}
@@ -6938,7 +6938,7 @@ MonoBehaviour:
   projectileSpeed: 8
   projectileDamage: 10.4
   projectileCount: 5
-  spreadAngle: 60
+  spreadAngle: 36
   projectileVisualPrefab: {fileID: 5686664197912667081, guid: 523c8221b69364548a7bc924af655308, type: 3}
   impactEffectPrefab: {fileID: 2144055660164847522, guid: 482f70e3c92f6b247a1ba3407f9fcbfb, type: 3}
   projectileColor: {r: 1, g: 0.45, b: 0.1, a: 1}

@@ -41,8 +41,11 @@ public class ScreenPrompt : MonoBehaviour
 
     public void Show(string message)
     {
-        text.text = message;
         if (!gameObject.activeSelf) gameObject.SetActive(true);
+        if (text.text == message) return;
+        text.text = message;
+        var panel = (RectTransform)text.transform.parent;   // 긴 문구도 잘리지 않게 띠 너비를 글자에 맞춤
+        panel.sizeDelta = new Vector2(Mathf.Max(460f, text.preferredWidth + 60f), panel.sizeDelta.y);
     }
 
     public void Hide()

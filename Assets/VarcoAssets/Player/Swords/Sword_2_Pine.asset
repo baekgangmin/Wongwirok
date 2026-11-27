@@ -15,7 +15,7 @@ MonoBehaviour:
   displayName: "\uC18C\uB098\uBB34 \uAC00\uC9C0"
   tier: 2
   attackPower: 20
-  price: 150
+  price: 120
   trailColor:
     serializedVersion: 2
     key0: {r: 1, g: 0.7, b: 0.15, a: 0.75}

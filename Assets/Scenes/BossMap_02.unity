@@ -11489,7 +11489,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8935188cc1ace3e4199ad90f826340d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
-  maxHealth: 320
+  maxHealth: 260
   yanggiDrop: {x: 15, y: 60}
 --- !u!114 &1214386656
 MonoBehaviour:
@@ -19705,7 +19705,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8935188cc1ace3e4199ad90f826340d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
-  maxHealth: 320
+  maxHealth: 260
   yanggiDrop: {x: 15, y: 60}
 --- !u!114 &2074828433
 MonoBehaviour:

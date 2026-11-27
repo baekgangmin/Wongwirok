@@ -51,6 +51,9 @@ public class YanggiHUD : MonoBehaviour
         hud.popText = MakeText(root.transform, font, 36, new Vector2(-40, -100), TextAnchor.UpperRight);
         hud.popText.text = "";
         hud.Refresh(GameProgress.Yanggi);
+        // 시작 화면에서는 숨김
+        canvas.enabled = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Title";
+        UnityEngine.SceneManagement.SceneManager.activeSceneChanged += (_, s) => { if (canvas != null) canvas.enabled = s.name != "Title"; };
     }
 
     private static Text MakeText(Transform parent, Font font, int size, Vector2 pos, TextAnchor align)

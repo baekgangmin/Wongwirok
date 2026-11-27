@@ -49,6 +49,14 @@ public static class GameProgress
         set { PlayerPrefs.SetInt(SwordTierKey, value); PlayerPrefs.Save(); }
     }
 
+    // 양기귀에게 들은 이야기 수 (0 = 아직 아무것도, 1 = 처음 이야기, 2 = 1스테이지 뒤, 3 = 2스테이지 뒤)
+    private const string StoryKey = "wongwirok_story_heard";
+    public static int StoryHeard
+    {
+        get => PlayerPrefs.GetInt(StoryKey, 0);
+        set { PlayerPrefs.SetInt(StoryKey, value); PlayerPrefs.Save(); }
+    }
+
     public static void ResetYanggiAndSword()
     {
         PlayerPrefs.DeleteKey(YanggiKey);

@@ -166,6 +166,7 @@ public class YanggiGhost : MonoBehaviour
         panel.SetActive(false);
         SetPlayerFree(true);
         StartCoroutine(GoHome());
+        TutorialHints.Begin();   // 첫 이야기를 들은 뒤 조작 안내 (한 번만)
     }
 
     private void Give()

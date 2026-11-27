@@ -137,6 +137,7 @@ public class TitleMenu : MonoBehaviour
             GameProgress.ResetAll();
             GameProgress.ResetYanggiAndSword();
             GameProgress.StoryHeard = 0;   // 양기귀 이야기도 처음부터
+            TutorialHints.ResetDone();
         }
         StartCoroutine(Leave());
     }
